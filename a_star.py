@@ -72,8 +72,8 @@ class PathPlanner:
                     layer_diff = abs(k - self.goal_node[2])
                     self.heuristic[i][j][k] = math.sqrt(row_diff**2 + col_diff**2 + layer_diff**2)
 
-        print("Heuristic:")
-        print(self.heuristic)
+        #print("Heuristic:")
+        #print(self.heuristic)
 
     def a_star(self, start_cart, goal_cart):
         """
@@ -90,8 +90,8 @@ class PathPlanner:
         init = [start_cart[2], start_cart[1], start_cart[0]]
         # Calculate the Heuristic for the map
         self.calc_heuristic()
-
-        print(init, goal)
+        print("Start point (z, y, x): ", init)
+        print("End point (z, y, x): ", goal)
 
         if self.visual:
             viz_map = deepcopy(self.grid)
@@ -229,9 +229,10 @@ class PathPlanner:
             current_x = previous_x
         full_path.reverse()
         print("Found the goal in {} iterations.".format(count))
-        print("full_path: ", full_path[:-1])
+        print("full_path (z, y, x): ", full_path[:-1])
         print("shortest path: ")
         for a in range(len(shortest_path)):
+            print("\n")
             for b in range(len(shortest_path[0])):
                 print(shortest_path[a][b])
 
@@ -274,8 +275,8 @@ if __name__ == '__main__':
                  [0, 1, 0, 0, 0, 0],
                  [0, 1, 0, 0, 0, 0],
                  [0, 1, 0, 0, 1, 0]]]
-    test_start = [0, 0, 2]  # [x, y, z]
-    test_goal = [5, 7, 0]   # [x, y, z]
+    test_start = [0, 0, 0]  # [x, y, z]
+    test_goal = [5, 7, 2]   # [x, y, z]
 
 # test_grid = [[0, 0, 0, 0, 0, 0, 0, 0],
 #              [0, 0, 0, 0, 0, 0, 0, 0],
