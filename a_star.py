@@ -198,7 +198,7 @@ class PathPlanner:
                         z2 = z + delta[i][0]
                         y2 = y + delta[i][1]
                         x2 = x + delta[i][2]
-                        if len(self.grid) > z2 >= 0 and 0 <= y2 < len(self.grid[0]) and len(self.grid[0][0]) > x2 >= 0:
+                        if len(self.grid) > z2 >= 0 and len(self.grid[0]) > y2 >= 0 and len(self.grid[0][0]) > x2 >= 0:
                             #print(z2, y2, x2)
                             if closed[z2][y2][x2] == 0 and self.grid[z2][y2][x2] == 0:
                                 g2 = g + cost
@@ -216,7 +216,9 @@ class PathPlanner:
         current_x = goal[2]
         shortest_path[current_z][current_y][current_x] = '* '
         full_path = []
-        while current_z != init[0] or current_y != init[1] or current_z != init[2]:
+        while current_z != init[0] or current_y != init[1] or current_x != init[2]:
+            #print(delta_tracker[current_z][current_y][current_x])
+            #print(current_z, current_y, current_x)
             previous_z = current_z - delta[delta_tracker[current_z][current_y][current_x]][0]
             previous_y = current_y - delta[delta_tracker[current_z][current_y][current_x]][1]
             previous_x = current_x - delta[delta_tracker[current_z][current_y][current_x]][2]
@@ -254,7 +256,7 @@ if __name__ == '__main__':
                  [0, 1, 0, 0, 0, 0],
                  [0, 1, 0, 0, 0, 0],
                  [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 0, 0],
+                 [0, 1, 0, 0, 1, 1],
                  [0, 1, 0, 0, 1, 0]],
                  [[0, 0, 0, 0, 0, 0],
                  [0, 1, 1, 1, 1, 1],
