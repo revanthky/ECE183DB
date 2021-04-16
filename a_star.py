@@ -54,18 +54,22 @@ class PathPlanner:
         class member variable self.heuristic.
         :return: None.
         """
-        row = len(self.grid)
-        col = len(self.grid[0])
-        layer = len(self.grid[0][0])
+        layer = len(self.grid)
+        row = len(self.grid[0])
+        col = len(self.grid[0][0])
 
         self.heuristic = [[[0 for x in range(col)] for y in range(row)] for z in range(layer)]
-        for i in range(row):
-            for j in range(col):
-                for k in range(layer):
+        
+        #print(len(self.heuristic) == len(self.grid))
+        #print(len(self.heuristic[0]) == len(self.grid[0]))
+        #print(len(self.heuristic[0][0]) == len(self.grid[0][0]))
+
+        for i in range(layer):
+            for j in range(row):
+                for k in range(col):
                     row_diff = abs(i - self.goal_node[0])
                     col_diff = abs(j - self.goal_node[1])
                     layer_diff = abs(k - self.goal_node[2])
-                    #self.heuristic[i][j][k] = int(abs(row_diff - col_diff) + min(row_diff, col_diff) * 2)
                     self.heuristic[i][j][k] = math.sqrt(row_diff**2 + col_diff**2 + layer_diff**2)
 
         print("Heuristic:")
@@ -75,9 +79,9 @@ class PathPlanner:
         """
         A* Planner method. Finds a plan from a starting node
         to a goal node if one exits.
-        :param init: Initial node in an Occupancy map. [x, y, z].
+        :param init: Initial node in an Occupancy map. [x, y].
         Type: List of Ints.
-        :param goal: Goal node in an Occupancy map. [x, y, z].
+        :param goal: Goal node in an Occupancy map. [x, y].
         Type: List of Ints.
         :return: Found path or -1 if it fails.
         """
@@ -96,21 +100,20 @@ class PathPlanner:
             ax.set_title('Occupancy Grid')
             plt.xticks(visible=False)
             plt.yticks(visible=False)
-            plt.zticks(visible=False)
             plt.imshow(viz_map, origin='upper', interpolation='none', clim=COLOR_MAP)
             ax.set_aspect('equal')
             plt.pause(2)
-            viz_map[init[0]][init[1]][init[2]] = 5  # Place Start Node
-            viz_map[goal[0]][goal[1]][goal[2]] = 6
+            viz_map[init[0]][init[1]] = 5  # Place Start Node
+            viz_map[goal[0]][goal[1]] = 6
             plt.imshow(viz_map, origin='upper', interpolation='none', clim=COLOR_MAP)
             plt.pause(2)
 
         # Different move/search direction options:
 
         #delta = [[-1, 0],  # go up
-                 #[0, -1],  # go left
-                 #[1, 0],  # go down
-                 #[0, 1]]  # go right
+        #         [0, -1],  # go left
+        #         [1, 0],  # go down
+        #         [0, 1]]  # go right
         #delta_name = ['^ ', '< ', 'v ', '> ']
 
         # If you wish to use diagonals:
@@ -146,20 +149,20 @@ class PathPlanner:
 
         # Heavily used from some of the A* Examples by Sebastian Thrun:
 
-        closed = [[[0 for col in range(len(self.grid[0]))] for row in range(len(self.grid))] for layer in range(len(self.grid[0][0]))]
-        shortest_path = [[['  ' for _ in range(len(self.grid[0]))] for _ in range(len(self.grid))] for _ in range(len(self.grid[0][0]))]
+        closed = [[[0 for col in range(len(self.grid[0][0]))] for row in range(len(self.grid[0]))] for layer in range(len(self.grid))]
+        shortest_path = [[['  ' for _ in range(len(self.grid[0][0]))] for _ in range(len(self.grid[0]))] for _ in range(len(self.grid))]
         closed[init[0]][init[1]][init[2]] = 1
 
-        expand = [[[-1 for col in range(len(self.grid[0]))] for row in range(len(self.grid))] for layer in range(len(self.grid[0][0]))]
-        delta_tracker = [[[-1 for _ in range(len(self.grid[0]))] for _ in range(len(self.grid))] for _ in range(len(self.grid[0][0]))]
+        expand = [[[-1 for col in range(len(self.grid[0][0]))] for row in range(len(self.grid[0]))] for layer in range(len(self.grid))]
+        delta_tracker = [[[-1 for _ in range(len(self.grid[0][0]))] for _ in range(len(self.grid[0]))] for _ in range(len(self.grid))]
 
         cost = 1
-        x = init[0]
+        z = init[0]
         y = init[1]
-        z = init[2]
+        x = init[2]
         g = 0
-        f = g + self.heuristic[x][y][z]
-        open = [[f, g, x, y, z]]
+        f = g + self.heuristic[z][y][x]
+        open = [[f, g, z, y, x]]
 
         found = False  # flag that is set when search is complete
         resign = False  # flag set if we can't find expand
@@ -176,64 +179,68 @@ class PathPlanner:
                 open.sort()
                 open.reverse()
                 next = open.pop()
-                x = next[2]
+                z = next[2]
                 y = next[3]
-                z = next[4]
+                x = next[4]
                 g = next[1]
-                expand[x][y][z] = count
+                expand[z][y][x] = count
                 count += 1
 
-                if x == goal[0] and y == goal[1] and z == goal[2]:
+                if z == goal[0] and y == goal[1] and x == goal[2]:
                     found = True
                     if self.visual:
-                        viz_map[goal[0]][goal[1]][goal[2]] = 7
+                        viz_map[goal[0]][goal[1]] = 7
                         plt.text(2, 10, s="Goal found!", fontsize=18, style='oblique', ha='center', va='top')
                         plt.imshow(viz_map, origin='upper', interpolation='none', clim=COLOR_MAP)
                         plt.pause(2)
                 else:
                     for i in range(len(delta)):
-                        x2 = x + delta[i][0]
+                        z2 = z + delta[i][0]
                         y2 = y + delta[i][1]
-                        z2 = z + delta[i][2]
-                        if len(self.grid) > x2 >= 0 and len(self.grid[0]) > y2 >= 0 and len(self.grid[0][0]) > z2 >= 0:
-                            if closed[x2][y2][z2] == 0 and self.grid[x2][y2][z2] == 0:
+                        x2 = x + delta[i][2]
+                        if len(self.grid) > z2 >= 0 and 0 <= y2 < len(self.grid[0]) and len(self.grid[0][0]) > x2 >= 0:
+                            #print(z2, y2, x2)
+                            if closed[z2][y2][x2] == 0 and self.grid[z2][y2][x2] == 0:
                                 g2 = g + cost
-                                f = g2 + self.heuristic[x2][y2][z2]
-                                open.append([f, g2, x2, y2, z2])
-                                closed[x2][y2][z2] = 1
-                                delta_tracker[x2][y2][z2] = i
+                                f = g2 + self.heuristic[z2][y2][x2]
+                                open.append([f, g2, z2, y2, x2])
+                                closed[z2][y2][x2] = 1
+                                delta_tracker[z2][y2][x2] = i
                                 if self.visual:
-                                    viz_map[x2][y2][z2] = 3
+                                    viz_map[x2][y2] = 3
                                     plt.imshow(viz_map, origin='upper', interpolation='none', clim=COLOR_MAP)
                                     plt.pause(.5)
 
-        current_x = goal[0]
+        current_z = goal[0]
         current_y = goal[1]
-        current_z = goal[2]
-        shortest_path[current_x][current_y][current_z] = '* '
+        current_x = goal[2]
+        shortest_path[current_z][current_y][current_x] = '* '
         full_path = []
-        while current_x != init[0] or current_y != init[1] or current_z != init[2]:
-            previous_x = current_x - delta[delta_tracker[current_x][current_y][current_z]][0]
-            previous_y = current_y - delta[delta_tracker[current_x][current_y][current_z]][1]
-            previous_z = current_z - delta[delta_tracker[current_x][current_y][current_z]][2]
-            shortest_path[previous_x][previous_y][previous_z] = delta_name[delta_tracker[current_x][current_y][current_z]]
-            full_path.append((current_x, current_y, current_z))
-            current_x = previous_x
-            current_y = previous_y
+        while current_z != init[0] or current_y != init[1] or current_z != init[2]:
+            previous_z = current_z - delta[delta_tracker[current_z][current_y][current_x]][0]
+            previous_y = current_y - delta[delta_tracker[current_z][current_y][current_x]][1]
+            previous_x = current_x - delta[delta_tracker[current_z][current_y][current_x]][2]
+            shortest_path[previous_z][previous_y][previous_x] = delta_name[delta_tracker[current_z][current_y][current_x]]
+            full_path.append((current_z, current_y, current_x))
             current_z = previous_z
+            current_y = previous_y
+            current_x = previous_x
         full_path.reverse()
         print("Found the goal in {} iterations.".format(count))
         print("full_path: ", full_path[:-1])
-        print("shortest path:", shortest_path)
+        print("shortest path: ")
+        for a in range(len(shortest_path)):
+            for b in range(len(shortest_path[0])):
+                print(shortest_path[a][b])
 
         if self.visual:
             for node in full_path:
-                viz_map[node[0]][node[1]][node[2]] = 7
+                viz_map[node[0]][node[1]] = 7
                 plt.imshow(viz_map, origin='upper', interpolation='none', clim=COLOR_MAP)
                 plt.pause(.5)
 
             # Animate reaching goal:
-            viz_map[goal[0]][goal[1]][node[2]] = 8
+            viz_map[goal[0]][goal[1]] = 8
             plt.imshow(viz_map, origin='upper', interpolation='none', clim=COLOR_MAP)
             plt.pause(5)
 
@@ -242,7 +249,7 @@ class PathPlanner:
 
 if __name__ == '__main__':
     test_grid = [[[0, 0, 0, 0, 0, 0],
-                 [0, 1, 1, 1, 1, 0],
+                 [0, 1, 1, 1, 1, 1],
                  [0, 1, 0, 0, 0, 0],
                  [0, 1, 0, 0, 0, 0],
                  [0, 1, 0, 0, 0, 0],
@@ -250,7 +257,7 @@ if __name__ == '__main__':
                  [0, 1, 0, 0, 0, 0],
                  [0, 1, 0, 0, 1, 0]],
                  [[0, 0, 0, 0, 0, 0],
-                 [0, 1, 1, 1, 1, 0],
+                 [0, 1, 1, 1, 1, 1],
                  [0, 1, 0, 0, 0, 0],
                  [0, 1, 0, 0, 0, 0],
                  [0, 1, 0, 0, 0, 0],
@@ -265,8 +272,8 @@ if __name__ == '__main__':
                  [0, 1, 0, 0, 0, 0],
                  [0, 1, 0, 0, 0, 0],
                  [0, 1, 0, 0, 1, 0]]]
-    test_start = [0, 0, 0]  # [x, y]
-    test_goal = [1, 5, 7]   # [x, y]
+    test_start = [0, 0, 2]  # [x, y, z]
+    test_goal = [5, 7, 0]   # [x, y, z]
 
 # test_grid = [[0, 0, 0, 0, 0, 0, 0, 0],
 #              [0, 0, 0, 0, 0, 0, 0, 0],
@@ -286,7 +293,7 @@ if __name__ == '__main__':
     # test_goal =  [6, 11]  # [x, y]
 
     # Create an instance of the PathPlanner class:
-    test_planner = PathPlanner(test_grid, True)
+    test_planner = PathPlanner(test_grid)
 
     # Plan a path.
     test_planner.a_star(test_start, test_goal)
