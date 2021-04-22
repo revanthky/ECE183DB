@@ -23,12 +23,16 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-import matplotlib.pyplot as plt
 from copy import deepcopy
 import math
+import random
+from mpl_toolkits import mplot3d
+import matplotlib.pyplot as plt
 
 COLOR_MAP = (0, 8)
-
+width = 10
+height = 10
+depth = 5
 
 class PathPlanner:
 
@@ -150,7 +154,12 @@ class PathPlanner:
         # Heavily used from some of the A* Examples by Sebastian Thrun:
 
         closed = [[[0 for col in range(len(self.grid[0][0]))] for row in range(len(self.grid[0]))] for layer in range(len(self.grid))]
-        shortest_path = [[['  ' for _ in range(len(self.grid[0][0]))] for _ in range(len(self.grid[0]))] for _ in range(len(self.grid))]
+        shortest_path = [[['X' for _ in range(len(self.grid[0][0]))] for _ in range(len(self.grid[0]))] for _ in range(len(self.grid))]
+        for x in range(len(self.grid[0][0])):
+            for y in range(len(self.grid[0])):
+                for z in range(len(self.grid)):
+                    if test_grid[z][y][x] == 0:
+                        shortest_path[z][y][x] = ' '
         closed[init[0]][init[1]][init[2]] = 1
 
         expand = [[[-1 for col in range(len(self.grid[0][0]))] for row in range(len(self.grid[0]))] for layer in range(len(self.grid))]
@@ -251,52 +260,50 @@ class PathPlanner:
 
 
 if __name__ == '__main__':
-    test_grid = [[[0, 0, 0, 0, 0, 0],
-                 [0, 1, 1, 1, 1, 1],
-                 [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 1, 1],
-                 [0, 1, 0, 0, 1, 0]],
-                 [[0, 0, 0, 0, 0, 0],
-                 [0, 1, 1, 1, 1, 1],
-                 [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 1, 0]],
-                 [[0, 0, 0, 0, 0, 0],
-                 [0, 1, 1, 1, 1, 0],
-                 [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 1, 0]]]
-    test_start = [0, 0, 0]  # [x, y, z]
-    test_goal = [5, 7, 2]   # [x, y, z]
 
-# test_grid = [[0, 0, 0, 0, 0, 0, 0, 0],
-#              [0, 0, 0, 0, 0, 0, 0, 0],
-#              [0, 0, 0, 0, 0, 0, 0, 0],
-#              [1, 1, 1, 1, 1, 1, 1, 1],
-#              [1, 0, 0, 1, 1, 0, 0, 1],
-#              [1, 0, 0, 1, 1, 0, 0, 1],
-#              [1, 0, 0, 1, 1, 0, 0, 1],
-#              [1, 0, 0, 0, 0, 0, 0, 1],
-#              [1, 0, 0, 0, 0, 0, 0, 1],
-#              [1, 0, 0, 0, 0, 0, 0, 1],
-#              [1, 0, 0, 0, 0, 0, 0, 1],
-#              [1, 0, 0, 0, 0, 0, 0, 1],
-#              [1, 1, 1, 1, 1, 1, 1, 1]]
+    test_grid = [[[random.randint(0, 7)==0 for _ in range(width)] for _ in range(height)] for _ in range(depth)]
+    test_start = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]  # [x, y, z]
+    while test_grid[test_start[2]][test_start[1]][test_start[0]] == 1:
+        test_start = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]  # [x, y, z]
+    test_goal = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]   # [x, y, z]
+    while test_grid[test_goal[2]][test_goal[1]][test_goal[0]] == 1:
+        test_goal = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]   # [x, y, z]
 
-    # test_start = [2, 4]  #  [x, y]
-    # test_goal =  [6, 11]  # [x, y]
 
     # Create an instance of the PathPlanner class:
     test_planner = PathPlanner(test_grid)
 
     # Plan a path.
-    test_planner.a_star(test_start, test_goal)
+    _, path = test_planner.a_star(test_start, test_goal)
+
+    xs = [test_start[0]]
+    ys = [test_start[1]]
+    zs = [-test_start[2]]
+    obstacle_xs = []
+    obstacle_ys = []
+    obstacle_zs = []
+    for x in range(len(test_grid[0][0])):
+        for y in range(len(test_grid[0])):
+            for z in range(len(test_grid)):
+                if test_grid[z][y][x] == 1:
+                    obstacle_xs.append(x)
+                    obstacle_ys.append(y)
+                    obstacle_zs.append(-z)
+    for i in range(len(path)):
+        xs.append(path[i][2])
+        ys.append(path[i][1])
+        zs.append(-path[i][0])
+    xs.append(test_goal[0])
+    ys.append(test_goal[1])
+    zs.append(-test_goal[2])
+    ax = plt.axes(projection='3d')
+    ax.plot3D(xs,ys,zs, label='path')
+    ax.plot3D(obstacle_xs, obstacle_ys, obstacle_zs, 'ro', label='obstacles')
+    ax.plot3D([test_start[0]], [test_start[1]], [-test_start[2]], 'bo', label='start')
+    ax.plot3D([test_goal[0]], [test_goal[1]], [-test_goal[2]], 'go', label='end')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    plt.title("Shortest Path")
+    ax.legend()
+    plt.show()
