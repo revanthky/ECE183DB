@@ -32,7 +32,7 @@ import matplotlib.pyplot as plt
 COLOR_MAP = (0, 8)
 width = 10
 height = 10
-depth = 5
+depth = 10
 
 class PathPlanner:
 
@@ -261,34 +261,41 @@ class PathPlanner:
 
 if __name__ == '__main__':
 
-    test_grid = [[[random.randint(0, 7)==0 for _ in range(width)] for _ in range(height)] for _ in range(depth)]
-    test_start = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]  # [x, y, z]
-    while test_grid[test_start[2]][test_start[1]][test_start[0]] == 1:
-        test_start = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]  # [x, y, z]
-    test_goal = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]   # [x, y, z]
-    while test_grid[test_goal[2]][test_goal[1]][test_goal[0]] == 1:
-        test_goal = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]   # [x, y, z]
-
-
-    # Create an instance of the PathPlanner class:
-    test_planner = PathPlanner(test_grid)
-
-    # Plan a path.
-    _, path = test_planner.a_star(test_start, test_goal)
-
+    test_grid = [[[0 for _ in range(width)] for _ in range(height)] for _ in range(depth)]
+    #test_start = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]  # [x, y, z]
+    #while test_grid[test_start[2]][test_start[1]][test_start[0]] == 1:
+    #    test_start = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]  # [x, y, z]
+    #test_goal = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]   # [x, y, z]
+    #while test_grid[test_goal[2]][test_goal[1]][test_goal[0]] == 1:
+    #    test_goal = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]   # [x, y, z]
+    test_start = [9,9,9]
+    test_goal = [0,0,0]
     xs = [test_start[0]]
     ys = [test_start[1]]
     zs = [-test_start[2]]
     obstacle_xs = []
     obstacle_ys = []
     obstacle_zs = []
-    for x in range(len(test_grid[0][0])):
-        for y in range(len(test_grid[0])):
-            for z in range(len(test_grid)):
-                if test_grid[z][y][x] == 1:
-                    obstacle_xs.append(x)
-                    obstacle_ys.append(y)
-                    obstacle_zs.append(-z)
+    for y in range(4,8):
+        for x in range(2,6):
+            for z in range(0,10):
+                test_grid[z][y][x] = 1
+                obstacle_xs.append(x)
+                obstacle_ys.append(y)
+                obstacle_zs.append(-z)
+    for y in range(4,8):
+        for x in range(6,10):
+            for z in range(0,10):
+                test_grid[z][y][x] = 1
+                obstacle_xs.append(x)
+                obstacle_ys.append(y)
+                obstacle_zs.append(-z)
+    
+    # Create an instance of the PathPlanner class:
+    test_planner = PathPlanner(test_grid)
+
+    # Plan a path.
+    _, path = test_planner.a_star(test_start, test_goal)
     for i in range(len(path)):
         xs.append(path[i][2])
         ys.append(path[i][1])
@@ -296,6 +303,7 @@ if __name__ == '__main__':
     xs.append(test_goal[0])
     ys.append(test_goal[1])
     zs.append(-test_goal[2])
+    
     ax = plt.axes(projection='3d')
     ax.plot3D(xs,ys,zs, label='path')
     ax.plot3D(obstacle_xs, obstacle_ys, obstacle_zs, 'ro', label='obstacles')
