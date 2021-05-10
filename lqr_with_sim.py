@@ -38,6 +38,11 @@ class Robot:
         self.Q = np.diag(np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.1, 0.1]))
         self.B = self.getB(self.state[6], self.state[7], dt)
 
+    def getCurState(self):
+        return self.state
+    def getGoalState(self):
+        return self.goal_state
+
     def getB(self, azimuth, elevation, deltat):
         """
         Expresses how the state of the system changes
@@ -53,11 +58,11 @@ class Robot:
         B[7][3] = 0.035*deltat #0.035
         return B
 
-    def state_dynamics(self, input_):
-        self.B = self.getB(self.state[6], self.state[7], dt)
+    def update(self, input_):
         self.state = (self.A @ self.state) + (self.B @ input_) 
+        self.B = self.getB(self.state[6], self.state[7], dt)
 
-    def lqr(self, actual_state_x, desired_state_xf, Q, R, A, B, dt):
+    def lqr(self):
         """
         Discrete-time linear quadratic regulator for a nonlinear system.
     
@@ -70,7 +75,7 @@ class Robot:
     
         """
         # We want the system to stabilize at desired_state_xf.
-        x_error = actual_state_x - desired_state_xf
+        x_error = self.state - self.goal_state
     
         # Solutions to discrete LQR problems are obtained using the dynamic 
         # programming method.
@@ -82,7 +87,7 @@ class Robot:
         # Create a list of N + 1 elements
         P = [None] * (N + 1)
 
-        Qf = Q
+        Qf = self.Q
     
         # LQR via Dynamic Programming
         P[N] = Qf
@@ -92,8 +97,8 @@ class Robot:
         
             # Discrete-time Algebraic Riccati equation to calculate the optimal 
             # state cost matrix
-            P[i-1] = Q + A.T @ P[i] @ A - (A.T @ P[i] @ B) @ np.linalg.pinv(
-                R + B.T @ P[i] @ B) @ (B.T @ P[i] @ A)
+            P[i-1] = self.Q + self.A.T @ P[i] @ self.A - (self.A.T @ P[i] @ self.B) @ np.linalg.pinv(
+                self.R + self.B.T @ P[i] @ self.B) @ (self.B.T @ P[i] @ self.A)
             #print("P[i]: ")
             #print(P[i-1])
     
@@ -103,9 +108,8 @@ class Robot:
     
         # For i = 0, ..., N - 1
         for i in range(N):
-        
             # Calculate the optimal feedback gain K
-            K[i] = -np.linalg.pinv(R + B.T @ P[i+1] @ B) @ B.T @ P[i+1] @ A
+            K[i] = -np.linalg.pinv(self.R + self.B.T @ P[i+1] @ self.B) @ self.B.T @ P[i+1] @ self.A
             #print("K[i]: ")
             #print(K[i])
             u[i] = K[i] @ x_error
@@ -202,9 +206,21 @@ dzs = []
 azs = []
 els = []
 len_ = []
-for i in range(0,100,1):
+for i in range(0,200,1):
     len_.append(i)
-    rob.state_dynamics(np.array([0.1,0,0,0])) #second and third inputs should be same
+    cur = rob.getCurState()
+    goal = rob.getGoalState()
+
+    print(f'iteration = {i} seconds')
+    print(f'Current State = {cur}')
+    print(f'Desired State = {goal}')
+         
+    state_error = cur - goal
+    state_error_magnitude = np.linalg.norm(state_error)     
+    print(f'State Error Magnitude = {state_error_magnitude}')
+
+    rob.update(rob.lqr())
+    #rob.update(np.array([0.1,0,0,0])) #second and third inputs should be same
     xs.append(rob.state[0])
     dxs.append(rob.state[1])
     ys.append(rob.state[2])

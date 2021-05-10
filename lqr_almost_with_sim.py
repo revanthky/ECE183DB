@@ -162,8 +162,8 @@ def main():
  
     # Desired state [x, y, z, azimuth angle, elevation angle, tilt angle]
     # [meters, meters, meters, radians, radians, radians]
-    desx = 50.0
-    desy = 50.0
+    desx = 40.0
+    desy = 40.0
     desz = -100.0
     desaz = np.arctan(desy/desx)
     desel = np.arctan(desz/(np.sqrt(desx**2+desy**2)))
