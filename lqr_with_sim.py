@@ -185,9 +185,9 @@ for i in range(50,100,1):
     els.append(rob.state[7])
 ax = plt.axes(projection='3d')
 ax.plot3D(xs,ys,zs, 'bo')
-ax.set_xlabel('x')
-ax.set_ylabel('y')
-ax.set_zlabel('z')
+ax.set_xlabel('x (meters)')
+ax.set_ylabel('y (meters)')
+ax.set_zlabel('z (meters)')
 plt.title("Simulation Output (Fake Control)")
 plt.show()
 
