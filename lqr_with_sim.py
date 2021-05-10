@@ -32,10 +32,10 @@ class Robot:
         self.A[2][3] = dt
         self.A[4][5] = dt
         self.R = np.array([[0.01, 0.00, 0.00, 0.00],  # Penalty for propeller force effort
-                  [0.00, 0.01, 0.00, 0.00],  # Penalty for rudder effort
-                  [0.00, 0.00, 0.01, 0.00],  # Penalty for left fin effort
-                  [0.00, 0.00, 0.00, 0.01]]) # Penalty for right fin effort
-        self.Q = np.diag(np.array([8.0, 0.0, 8.0, 0.0, 8.0, 0.0, 0.1, 0.1]))
+                           [0.00, 0.01, 0.00, 0.00],  # Penalty for rudder effort
+                           [0.00, 0.00, 0.01, 0.00],  # Penalty for left fin effort
+                           [0.00, 0.00, 0.00, 0.01]]) # Penalty for right fin effort
+        self.Q = np.diag(np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.1, 0.1]))
         self.B = self.getB(self.state[6], self.state[7], dt)
 
     def getB(self, azimuth, elevation, deltat):
@@ -47,9 +47,10 @@ class Robot:
         B[1][0] = np.cos(elevation)*np.cos(azimuth)*deltat/mass
         B[3][0] = np.cos(elevation)*np.sin(azimuth)*deltat/mass
         B[5][0] = np.sin(elevation)*deltat/mass
-        B[6][1] = -0.07*deltat
-        B[7][2] = 0.035*deltat
-        B[7][3] = 0.035*deltat
+        #1 to 1 linear relationship between fin angle, drift angle, add listed multiple for more realism
+        B[6][1] = -0.07*deltat #0.07
+        B[7][2] = 0.035*deltat #0.035
+        B[7][3] = 0.035*deltat #0.035
         return B
 
     def state_dynamics(self, input_):
@@ -160,9 +161,20 @@ dzs = []
 azs = []
 els = []
 len_ = []
-for i in range(100):
+for i in range(0,50,1):
     len_.append(i)
-    rob.state_dynamics(np.array([1,0,0,0]))
+    rob.state_dynamics(np.array([0.1,0,-np.pi/8,-np.pi/8])) #second and third inputs should be same
+    xs.append(rob.state[0])
+    dxs.append(rob.state[1])
+    ys.append(rob.state[2])
+    dys.append(rob.state[3])
+    zs.append(rob.state[4])
+    dzs.append(rob.state[5])
+    azs.append(rob.state[6])
+    els.append(rob.state[7])
+for i in range(50,100,1):
+    len_.append(i)
+    rob.state_dynamics(np.array([-0.05,-np.pi/8,0,0])) #second and third inputs should be same
     xs.append(rob.state[0])
     dxs.append(rob.state[1])
     ys.append(rob.state[2])
@@ -176,7 +188,7 @@ ax.plot3D(xs,ys,zs, 'bo')
 ax.set_xlabel('x')
 ax.set_ylabel('y')
 ax.set_zlabel('z')
-plt.title("Test 1")
+plt.title("Simulation Output (Fake Control)")
 plt.show()
 
 #main()

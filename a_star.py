@@ -30,9 +30,9 @@ from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 
 COLOR_MAP = (0, 8)
-width = 10
-height = 10
-depth = 10
+width = 100
+height = 100
+depth = 100
 
 class PathPlanner:
 
@@ -239,11 +239,11 @@ class PathPlanner:
         full_path.reverse()
         print("Found the goal in {} iterations.".format(count))
         print("full_path (z, y, x): ", full_path[:-1])
-        print("shortest path: ")
-        for a in range(len(shortest_path)):
-            print("\n")
-            for b in range(len(shortest_path[0])):
-                print(shortest_path[a][b])
+        #print("shortest path: ")
+        #for a in range(len(shortest_path)):
+            #print("\n")
+            #for b in range(len(shortest_path[0])):
+                #print(shortest_path[a][b])
 
         if self.visual:
             for node in full_path:
@@ -268,7 +268,7 @@ if __name__ == '__main__':
     #test_goal = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]   # [x, y, z]
     #while test_grid[test_goal[2]][test_goal[1]][test_goal[0]] == 1:
     #    test_goal = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]   # [x, y, z]
-    test_start = [9,9,9]
+    test_start = [width-1,height-1,depth-1]
     test_goal = [0,0,0]
     xs = [test_start[0]]
     ys = [test_start[1]]
@@ -276,20 +276,30 @@ if __name__ == '__main__':
     obstacle_xs = []
     obstacle_ys = []
     obstacle_zs = []
-    for y in range(4,8):
-        for x in range(2,6):
-            for z in range(0,10):
+    for y in range(1*height//10,4*height//10):
+        for x in range(1*width//10,4*width//10):
+            for z in range(0*depth//10,10*depth//10):
                 test_grid[z][y][x] = 1
-                obstacle_xs.append(x)
-                obstacle_ys.append(y)
-                obstacle_zs.append(-z)
-    for y in range(4,8):
-        for x in range(6,10):
-            for z in range(0,10):
+                if x >= 2*width//10 and x <= 3*width//10 and y>= 2*width//10 and y <= 3*width//10:
+                    obstacle_xs.append(x)
+                    obstacle_ys.append(y)
+                    obstacle_zs.append(-z)
+    for y in range(5*height//10,8*height//10):
+        for x in range(6*width//10,9*width//10):
+            for z in range(0*depth//10,10*depth//10):
                 test_grid[z][y][x] = 1
-                obstacle_xs.append(x)
-                obstacle_ys.append(y)
-                obstacle_zs.append(-z)
+                if x >= 7*width//10 and x <= 8*width//10 and y>= 6*width//10 and y <= 7*width//10:
+                    obstacle_xs.append(x)
+                    obstacle_ys.append(y)
+                    obstacle_zs.append(-z)
+    for y in range(5*height//10,8*height//10):
+        for x in range(2*width//10,5*width//10):
+            for z in range(0*depth//10,10*depth//10):
+                test_grid[z][y][x] = 1
+                if x >= 3*width//10 and x <= 4*width//10 and y>= 6*width//10 and y <= 7*width//10:
+                    obstacle_xs.append(x)
+                    obstacle_ys.append(y)
+                    obstacle_zs.append(-z)
     
     # Create an instance of the PathPlanner class:
     test_planner = PathPlanner(test_grid)
@@ -306,12 +316,12 @@ if __name__ == '__main__':
     
     ax = plt.axes(projection='3d')
     ax.plot3D(xs,ys,zs, label='path')
-    ax.plot3D(obstacle_xs, obstacle_ys, obstacle_zs, 'ro', label='obstacles')
+    ax.plot3D(obstacle_xs, obstacle_ys, obstacle_zs, 'ro', alpha=0.3, label='obstacles')
     ax.plot3D([test_start[0]], [test_start[1]], [-test_start[2]], 'bo', label='start')
     ax.plot3D([test_goal[0]], [test_goal[1]], [-test_goal[2]], 'go', label='end')
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('z')
-    plt.title("Shortest Path")
+    plt.title("Planned Path")
     ax.legend()
     plt.show()
