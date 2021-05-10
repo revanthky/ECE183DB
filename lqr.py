@@ -148,6 +148,8 @@ def lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt):
     #P = la.solve_discrete_are(A, B, Q, R)
     #K = la.solve(R + B.T.dot(P).dot(B), B.T.dot(P).dot(A))
     #u_star = K.dot(x_error)
+    #K, S, E = control.lqr(A, B, Q, R)
+    #u_star = K.dot(x_error)
     return u_star
  
 def main():
@@ -160,9 +162,9 @@ def main():
  
     # Desired state [x, y, z, azimuth angle, elevation angle, tilt angle]
     # [meters, meters, meters, radians, radians, radians]
-    desx = 2.0
-    desy = 4.0
-    desz = 4.0
+    desx = 40.0
+    desy = 40.0
+    desz = -100.0
     desaz = np.arctan(desy/desx)
     desel = np.arctan(desz/(np.sqrt(desx**2+desy**2)))
     desired_state_xf = np.array([desx,desy,desz, desaz, desel, 0])  
@@ -192,7 +194,7 @@ def main():
     # This matrix has positive values along the diagonal and 0s elsewhere.
     # We can target control inputs where we want low actuator effort 
     # by making the corresponding value of R large. 
-    R = np.array([[10.00, 0.00, 0.00, 0.00],  # Penalty for linear velocity effort
+    R = np.array([[200.00, 0.00, 0.00, 0.00],  # Penalty for linear velocity effort
                   [0.00, 0.01, 0.00, 0.00],  # Penalty for azimuth angular velocity effort
                   [0.00, 0.00, 0.01, 0.00],  # Penalty for elevation angular velocity effort
                   [0.00, 0.00, 0.00, 0.01]]) # Penalty for tilt angular velocity effort
@@ -208,15 +210,15 @@ def main():
     # Q has positive values along the diagonal and zeros elsewhere.
     # Q enables us to target states where we want low error by making the 
     # corresponding value of Q large.
-    Q = np.array([[8.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize X position error 
-                  [0.0, 8.0, 0.0, 0.0, 0.0, 0.0],  # Penalize Y position error 
-                  [0.0, 0.0, 8.0, 0.0, 0.0, 0.0],  # Penalize Z position error 
+    Q = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize X position error 
+                  [0.0, 10.0, 0.0, 0.0, 0.0, 0.0],  # Penalize Y position error 
+                  [0.0, 0.0, 10.0, 0.0, 0.0, 0.0],  # Penalize Z position error 
                   [0.0, 0.0, 0.0, 0.1, 0.0, 0.0],  # Penalize AZIMUTH heading error
                   [0.0, 0.0, 0.0, 0.0, 0.1, 0.0],  # Penalize ELEVATION heading error
                   [0.0, 0.0, 0.0, 0.0, 0.0, 0.1]]) # Penalize TILT heading error
                    
     # Launch the robot, and have it move to the desired goal destination
-    for i in range(100):
+    for i in range(200):
         print(f'iteration = {i} seconds')
         print(f'Current State = {actual_state_x}')
         print(f'Desired State = {desired_state_xf}')

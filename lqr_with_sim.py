@@ -151,6 +151,47 @@ class Robot:
         #print()
 
 # Test 1
+#rob = Robot(0, 0, 0, 0, 0, 0, 0, 0)
+#xs = []
+#ys = []
+#zs = []
+#dxs = []
+#dys = []
+#dzs = []
+#azs = []
+#els = []
+#len_ = []
+#for i in range(0,50,1):
+    #len_.append(i)
+    #rob.state_dynamics(np.array([0.1,0,-np.pi/8,-np.pi/8])) #second and third inputs should be same
+    #xs.append(rob.state[0])
+    #dxs.append(rob.state[1])
+    #ys.append(rob.state[2])
+    #dys.append(rob.state[3])
+    #zs.append(rob.state[4])
+    #dzs.append(rob.state[5])
+    #azs.append(rob.state[6])
+    #els.append(rob.state[7])
+#for i in range(50,100,1):
+    #len_.append(i)
+    #rob.state_dynamics(np.array([-0.05,-np.pi/8,0,0])) #second and third inputs should be same
+    #xs.append(rob.state[0])
+    #dxs.append(rob.state[1])
+    #ys.append(rob.state[2])
+    #dys.append(rob.state[3])
+    #zs.append(rob.state[4])
+    #dzs.append(rob.state[5])
+    #azs.append(rob.state[6])
+    #els.append(rob.state[7])
+#ax = plt.axes(projection='3d')
+#ax.plot3D(xs,ys,zs, 'bo')
+#ax.set_xlabel('x (meters)')
+#ax.set_ylabel('y (meters)')
+#ax.set_zlabel('z (meters)')
+#plt.title("Simulation Output (Fake Control)")
+#plt.show()
+
+# Test 1
 rob = Robot(0, 0, 0, 0, 0, 0, 0, 0)
 xs = []
 ys = []
@@ -161,20 +202,9 @@ dzs = []
 azs = []
 els = []
 len_ = []
-for i in range(0,50,1):
+for i in range(0,100,1):
     len_.append(i)
-    rob.state_dynamics(np.array([0.1,0,-np.pi/8,-np.pi/8])) #second and third inputs should be same
-    xs.append(rob.state[0])
-    dxs.append(rob.state[1])
-    ys.append(rob.state[2])
-    dys.append(rob.state[3])
-    zs.append(rob.state[4])
-    dzs.append(rob.state[5])
-    azs.append(rob.state[6])
-    els.append(rob.state[7])
-for i in range(50,100,1):
-    len_.append(i)
-    rob.state_dynamics(np.array([-0.05,-np.pi/8,0,0])) #second and third inputs should be same
+    rob.state_dynamics(np.array([0.1,0,0,0])) #second and third inputs should be same
     xs.append(rob.state[0])
     dxs.append(rob.state[1])
     ys.append(rob.state[2])
@@ -188,7 +218,7 @@ ax.plot3D(xs,ys,zs, 'bo')
 ax.set_xlabel('x (meters)')
 ax.set_ylabel('y (meters)')
 ax.set_zlabel('z (meters)')
-plt.title("Simulation Output (Fake Control)")
+plt.title("Simulation Output (Simple Fake Control)")
 plt.show()
 
 #main()
