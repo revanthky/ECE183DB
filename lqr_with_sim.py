@@ -52,7 +52,6 @@ class Robot:
         B[1][0] = np.cos(elevation)*np.cos(azimuth)*deltat/mass
         B[3][0] = np.cos(elevation)*np.sin(azimuth)*deltat/mass
         B[5][0] = np.sin(elevation)*deltat/mass
-        #1 to 1 linear relationship between fin angle, drift angle, add listed multiple for more realism
         B[6][1] = -0.07*deltat #0.07
         B[7][2] = 0.035*deltat #0.035
         B[7][3] = 0.035*deltat #0.035
