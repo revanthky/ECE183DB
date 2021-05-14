@@ -194,9 +194,9 @@ def main():
     # We can target control inputs where we want low actuator effort 
     # by making the corresponding value of R large. 
     R = np.array([[200.00, 0.00, 0.00, 0.00],  # Penalty for linear velocity effort
-                  [0.00, 0.01, 0.00, 0.00],  # Penalty for azimuth angular velocity effort
-                  [0.00, 0.00, 0.01, 0.00],  # Penalty for elevation angular velocity effort
-                  [0.00, 0.00, 0.00, 0.01]]) # Penalty for tilt angular velocity effort
+                  [0.00, 0.01, 0.00, 0.00],  # Penalty for rudder effort
+                  [0.00, 0.00, 0.01, 0.00],  # Penalty for left fin effort
+                  [0.00, 0.00, 0.00, 0.01]]) # Penalty for right fin effort
  
     # Q matrix
     # The state cost matrix.
@@ -209,11 +209,11 @@ def main():
     # Q has positive values along the diagonal and zeros elsewhere.
     # Q enables us to target states where we want low error by making the 
     # corresponding value of Q large.
-    Q = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize X position error 
+    Q = np.array([[100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize X position error 
                   [0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],   # Penalize dX error
-                  [0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize Y position error 
+                  [0.0, 0.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize Y position error 
                   [0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0],  # Penalize dY error 
-                  [0.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0], # Penalize Z position error
+                  [0.0, 0.0, 0.0, 0.0, 100.0, 0.0, 0.0, 0.0], # Penalize Z position error
                   [0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0], # Penalize dZ error
                   [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0],  # Penalize AZIMUTH heading error
                   [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1]]) # Penalize ELEVATION heading error

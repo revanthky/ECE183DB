@@ -207,19 +207,24 @@ els = []
 len_ = []
 for i in range(0,200,1):
     len_.append(i)
-    cur = rob.getCurState()
-    goal = rob.getGoalState()
 
-    print(f'iteration = {i} seconds')
-    print(f'Current State = {cur}')
-    print(f'Desired State = {goal}')
+    #cur = rob.getCurState()
+    #goal = rob.getGoalState()
+
+    #print(f'iteration = {i} seconds')
+    #print(f'Current State = {cur}')
+    #print(f'Desired State = {goal}')
          
-    state_error = cur - goal
-    state_error_magnitude = np.linalg.norm(state_error)     
-    print(f'State Error Magnitude = {state_error_magnitude}')
+    #state_error = cur - goal
+    #state_error_magnitude = np.linalg.norm(state_error)     
+    #print(f'State Error Magnitude = {state_error_magnitude}')
 
-    rob.update(rob.lqr())
-    #rob.update(np.array([0.1,0,0,0])) #second and third inputs should be same
+    #rob.update(rob.lqr())
+    if i < 100:
+        rob.update(np.array([0.05,0,-0.4,-0.4])) #second and third inputs should be same
+    if i >= 100:
+        rob.update(np.array([0.05,0.2,0,0])) #second and third inputs should be same
+
     xs.append(rob.state[0])
     dxs.append(rob.state[1])
     ys.append(rob.state[2])
