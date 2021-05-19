@@ -41,11 +41,6 @@ np.set_printoptions(precision=3,suppress=True)
 # Optional Variables
 max_linear_velocity = 1.565 # meters per second
 max_angular_velocity = 0.610 # radians per second
- 
-COLOR_MAP = (0, 8)
-width = 100
-height = 100
-depth = 100
 
 class PathPlanner:
 
@@ -273,8 +268,12 @@ class PathPlanner:
 
         return init, full_path, deltas
 
-def plan_path():
-
+def plan_path(sx, sy, sz, ex, ey, ez):
+    sz = -sz
+    ez = -ez
+    width = abs(ex-sx)+1
+    height = abs(ey-sy)+1
+    depth = abs(ez-sz)+1
     test_grid = [[[0 for _ in range(width)] for _ in range(height)] for _ in range(depth)]
     #test_start = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]  # [x, y, z]
     #while test_grid[test_start[2]][test_start[1]][test_start[0]] == 1:
@@ -282,8 +281,8 @@ def plan_path():
     #test_goal = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]   # [x, y, z]
     #while test_grid[test_goal[2]][test_goal[1]][test_goal[0]] == 1:
     #    test_goal = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]   # [x, y, z]
-    test_start = [0,0,0]
-    test_goal = [width-1,height-1,depth-1]
+    test_start = [sx,sy,sz]
+    test_goal = [ex,ey,ez]
     xs = [test_start[0]]
     ys = [test_start[1]]
     zs = [-test_start[2]]
@@ -294,7 +293,7 @@ def plan_path():
         for x in range(1*width//10,4*width//10):
             for z in range(0*depth//10,10*depth//10):
                 test_grid[z][y][x] = 1
-                if x >= 2*width//10 and x <= 3*width//10 and y>= 2*width//10 and y <= 3*width//10:
+                if x >= 2*width//10 and x <= 3*width//10 and y>= 2*height//10 and y <= 3*height//10:
                     obstacle_xs.append(x)
                     obstacle_ys.append(y)
                     obstacle_zs.append(-z)
@@ -302,7 +301,7 @@ def plan_path():
         for x in range(6*width//10,9*width//10):
             for z in range(0*depth//10,10*depth//10):
                 test_grid[z][y][x] = 1
-                if x >= 7*width//10 and x <= 8*width//10 and y>= 6*width//10 and y <= 7*width//10:
+                if x >= 7*width//10 and x <= 8*width//10 and y>= 6*height//10 and y <= 7*height//10:
                     obstacle_xs.append(x)
                     obstacle_ys.append(y)
                     obstacle_zs.append(-z)
@@ -310,10 +309,18 @@ def plan_path():
         for x in range(2*width//10,5*width//10):
             for z in range(0*depth//10,10*depth//10):
                 test_grid[z][y][x] = 1
-                if x >= 3*width//10 and x <= 4*width//10 and y>= 6*width//10 and y <= 7*width//10:
+                if x >= 3*width//10 and x <= 4*width//10 and y>= 6*height//10 and y <= 7*height//10:
                     obstacle_xs.append(x)
                     obstacle_ys.append(y)
                     obstacle_zs.append(-z)
+    #for y in range(2*height//10,5*height//10):
+        #for x in range(5*width//10,8*width//10):
+            #for z in range(0*depth//10,10*depth//10):
+                #test_grid[z][y][x] = 1
+                #if x >= 6*width//10 and x <= 7*width//10 and y>= 3*height//10 and y <= 4*height//10:
+                    #obstacle_xs.append(x)
+                    #obstacle_ys.append(y)
+                    #obstacle_zs.append(-z)
     
     # Create an instance of the PathPlanner class:
     test_planner = PathPlanner(test_grid)
@@ -551,6 +558,7 @@ def go_to_waypoint(start, end_x, end_y, end_z):
     xpositions = []
     ypositions = []
     zpositions = []
+    linvels = []
     for i in range(200):
         print(f'iteration = {i} seconds')
         print(f'Current State = {actual_state_x}')
@@ -567,6 +575,7 @@ def go_to_waypoint(start, end_x, end_y, end_z):
         clipped_control_input = clip(optimal_control_input)
         print(f'Control Input = {optimal_control_input}')
         print(f'Clipped Control = {clipped_control_input}')
+        linvels.append(clipped_control_input[0])
         #controls.append(optimal_control_input)
          
         # We apply the optimal control to the robot
@@ -584,33 +593,56 @@ def go_to_waypoint(start, end_x, end_y, end_z):
             print("\nNo Control Input")
             break
         print()
-    return actual_state_x, xpositions, ypositions, zpositions
+    return actual_state_x, xpositions, ypositions, zpositions, linvels
     #for control in controls:
         #print(control)
         #print("\n")
  
 # Entry point for the program
-startpoint = np.array([0,0,0,0,0,0])
-#waypoints = [(9, 9, -9), (39, 9, -39), (79, 49, -79), (89, 49, -89), (99, 59, -99), (99, 99, -99)]
-waypoints, xs, ys, zs, obstacle_xs, obstacle_ys, obstacle_zs, test_start, test_goal = plan_path()
+start = [0, 0, 0]
+end = [100, 100, -120]
+startpoint = np.array([start[0],start[1],start[2],0,0,0])
+waypoints, xs, ys, zs, obstacle_xs, obstacle_ys, obstacle_zs, test_start, test_goal = plan_path(start[0],start[1],start[2],end[0],end[1],end[2])
 realxs = []
 realys = []
 realzs = []
+vels = []
 for way in waypoints:
-    startpoint, xposes, yposes, zposes = go_to_waypoint(startpoint, way[0], way[1], way[2])
+    startpoint, xposes, yposes, zposes, lins = go_to_waypoint(startpoint, way[0], way[1], way[2])
     realxs.extend(xposes)
     realys.extend(yposes)
     realzs.extend(zposes)
+    vels.extend(lins)
+
+print(waypoints)
 
 ax = plt.axes(projection='3d')
-ax.plot3D(xs,ys,zs,label='planned path')
 ax.plot3D(obstacle_xs, obstacle_ys, obstacle_zs, 'ro', alpha=0.3, label='obstacles')
-ax.plot3D([test_start[0]], [test_start[1]], [-test_start[2]], 'b*', label='start')
-ax.plot3D([test_goal[0]], [test_goal[1]], [-test_goal[2]], 'g*', label='end')
-ax.plot3D(realxs,realys,realzs,'g',label='real path')
+ax.plot3D(xs,ys,zs,label='planned path')
+ax.plot3D([test_start[0]], [test_start[1]], [-test_start[2]], 'b*', label='planned start')
+ax.plot3D([test_goal[0]], [test_goal[1]], [-test_goal[2]], 'g*', label='planned end')
+ax.plot3D(realxs,realys,realzs,'g',label='true path')
+ax.plot3D([realxs[0]], [realys[0]], [realzs[0]], 'r*', label = 'true start')
+ax.plot3D([realxs[-1]], [realys[-1]], [realzs[-1]], 'm*', label = 'true end')
 ax.set_xlabel('x (meters)')
 ax.set_ylabel('y (meters)')
 ax.set_zlabel('z (meters)')
 plt.title("Planned Path vs Waypoint Control Path")
-ax.legend()
+ax.legend(loc='center left')
+plt.show()
+
+velocities = np.asarray(vels)
+time = np.arange(len(velocities))
+accelerations = np.diff(velocities)
+plt.scatter(time, velocities)
+plt.title("Control Velocity Input")
+plt.xlabel('time (seconds)')
+plt.ylabel('velocity (meters/second)')
+plt.show()
+
+time = np.arange(len(accelerations))
+plt.scatter(time, accelerations)
+plt.title("Control Acceleration Input (from Velocity)")
+plt.xlabel('time (seconds)')
+plt.ylabel('acceleration (meters/second^2)')
 plt.show()

@@ -282,7 +282,7 @@ def plan_path():
         for x in range(1*width//10,4*width//10):
             for z in range(0*depth//10,10*depth//10):
                 test_grid[z][y][x] = 1
-                if x >= 2*width//10 and x <= 3*width//10 and y>= 2*width//10 and y <= 3*width//10:
+                if x >= 2*width//10 and x <= 3*width//10 and y>= 2*height//10 and y <= 3*height//10:
                     obstacle_xs.append(x)
                     obstacle_ys.append(y)
                     obstacle_zs.append(-z)
@@ -290,7 +290,7 @@ def plan_path():
         for x in range(6*width//10,9*width//10):
             for z in range(0*depth//10,10*depth//10):
                 test_grid[z][y][x] = 1
-                if x >= 7*width//10 and x <= 8*width//10 and y>= 6*width//10 and y <= 7*width//10:
+                if x >= 7*width//10 and x <= 8*width//10 and y>= 6*height//10 and y <= 7*height//10:
                     obstacle_xs.append(x)
                     obstacle_ys.append(y)
                     obstacle_zs.append(-z)
@@ -298,7 +298,15 @@ def plan_path():
         for x in range(2*width//10,5*width//10):
             for z in range(0*depth//10,10*depth//10):
                 test_grid[z][y][x] = 1
-                if x >= 3*width//10 and x <= 4*width//10 and y>= 6*width//10 and y <= 7*width//10:
+                if x >= 3*width//10 and x <= 4*width//10 and y>= 6*height//10 and y <= 7*height//10:
+                    obstacle_xs.append(x)
+                    obstacle_ys.append(y)
+                    obstacle_zs.append(-z)
+    for y in range(2*height//10,5*height//10):
+        for x in range(5*width//10,8*width//10):
+            for z in range(0*depth//10,10*depth//10):
+                test_grid[z][y][x] = 1
+                if x >= 6*width//10 and x <= 7*width//10 and y>= 3*height//10 and y <= 4*height//10:
                     obstacle_xs.append(x)
                     obstacle_ys.append(y)
                     obstacle_zs.append(-z)
@@ -335,7 +343,7 @@ def plan_path():
     ax.set_zlabel('z (meters)')
     plt.title("Planned Path")
     ax.legend()
-    #plt.show()
+    plt.show()
 
     return waypoints
 
