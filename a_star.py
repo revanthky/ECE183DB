@@ -158,7 +158,7 @@ class PathPlanner:
         for x in range(len(self.grid[0][0])):
             for y in range(len(self.grid[0])):
                 for z in range(len(self.grid)):
-                    if test_grid[z][y][x] == 0:
+                    if self.grid[z][y][x] == 0:
                         shortest_path[z][y][x] = ' '
         closed[init[0]][init[1]][init[2]] = 1
 
@@ -225,20 +225,22 @@ class PathPlanner:
         current_x = goal[2]
         shortest_path[current_z][current_y][current_x] = '* '
         full_path = []
+        deltas = []
         while current_z != init[0] or current_y != init[1] or current_x != init[2]:
-            #print(delta_tracker[current_z][current_y][current_x])
-            #print(current_z, current_y, current_x)
+            print(delta_tracker[current_z][current_y][current_x])
+            print(current_z, current_y, current_x)
             previous_z = current_z - delta[delta_tracker[current_z][current_y][current_x]][0]
             previous_y = current_y - delta[delta_tracker[current_z][current_y][current_x]][1]
             previous_x = current_x - delta[delta_tracker[current_z][current_y][current_x]][2]
             shortest_path[previous_z][previous_y][previous_x] = delta_name[delta_tracker[current_z][current_y][current_x]]
             full_path.append((current_z, current_y, current_x))
+            deltas.append(delta_tracker[current_z][current_y][current_x])
             current_z = previous_z
             current_y = previous_y
             current_x = previous_x
         full_path.reverse()
         print("Found the goal in {} iterations.".format(count))
-        print("full_path (z, y, x): ", full_path[:-1])
+        print("full_path (z, y, x): ", full_path)
         #print("shortest path: ")
         #for a in range(len(shortest_path)):
             #print("\n")
@@ -256,10 +258,10 @@ class PathPlanner:
             plt.imshow(viz_map, origin='upper', interpolation='none', clim=COLOR_MAP)
             plt.pause(5)
 
-        return init, full_path[:-1]
+        return init, full_path, deltas
 
 
-if __name__ == '__main__':
+def plan_path():
 
     test_grid = [[[0 for _ in range(width)] for _ in range(height)] for _ in range(depth)]
     #test_start = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]  # [x, y, z]
@@ -268,8 +270,8 @@ if __name__ == '__main__':
     #test_goal = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]   # [x, y, z]
     #while test_grid[test_goal[2]][test_goal[1]][test_goal[0]] == 1:
     #    test_goal = [random.randint(0,width-1), random.randint(0,height-1), random.randint(0,depth-1)]   # [x, y, z]
-    test_start = [width-1,height-1,depth-1]
-    test_goal = [0,0,0]
+    test_start = [0,0,0]
+    test_goal = [width-1,height-1,depth-1]
     xs = [test_start[0]]
     ys = [test_start[1]]
     zs = [-test_start[2]]
@@ -305,15 +307,24 @@ if __name__ == '__main__':
     test_planner = PathPlanner(test_grid)
 
     # Plan a path.
-    _, path = test_planner.a_star(test_start, test_goal)
+    _, path, delts = test_planner.a_star(test_start, test_goal)
     for i in range(len(path)):
         xs.append(path[i][2])
         ys.append(path[i][1])
         zs.append(-path[i][0])
-    xs.append(test_goal[0])
-    ys.append(test_goal[1])
-    zs.append(-test_goal[2])
+    #xs.append(test_goal[0])
+    #ys.append(test_goal[1])
+    #zs.append(-test_goal[2])
+
+    waypoints = []
+    delts.reverse()
+    for i in range(1, len(path)):
+        if delts[i] != delts[i-1]:
+            waypoints.append((path[i-1][2], path[i-1][1], -path[i-1][0]))
     
+    waypoints.append((test_goal[0], test_goal[1], -test_goal[2]))
+
+
     ax = plt.axes(projection='3d')
     ax.plot3D(xs,ys,zs, label='path')
     ax.plot3D(obstacle_xs, obstacle_ys, obstacle_zs, 'ro', alpha=0.3, label='obstacles')
@@ -324,4 +335,9 @@ if __name__ == '__main__':
     ax.set_zlabel('z (meters)')
     plt.title("Planned Path")
     ax.legend()
-    plt.show()
+    #plt.show()
+
+    return waypoints
+
+dests = plan_path()
+print(dests)
