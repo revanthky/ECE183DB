@@ -11,7 +11,7 @@ from scipy import linalg as la
 np.set_printoptions(precision=3,suppress=True)
  
 # Optional Variables
-#max_linear_velocity = 3.0 # meters per second
+max_linear_velocity = 2.0 # meters per second
 #max_angular_velocity = 1.5708 # radians per second
  
 def getB(beta, alpha, deltat):
@@ -59,9 +59,7 @@ def state_space_model(A, state_t_minus_1, B, control_input_t_minus_1):
     """
     # These next 6 lines of code which place limits on the angular and linear 
     # velocities of the robot car can be removed if you desire.
-    #control_input_t_minus_1[0] = np.clip(control_input_t_minus_1[0],
-    #                                                                        -max_linear_velocity,
-    #                                                                        max_linear_velocity)
+    control_input_t_minus_1[0] = np.clip(control_input_t_minus_1[0], -max_linear_velocity, max_linear_velocity)
     #control_input_t_minus_1[1] = np.clip(control_input_t_minus_1[1],
     #                                                                        -max_angular_velocity,
     #                                                                        max_angular_velocity)
@@ -161,10 +159,10 @@ def main():
     actual_state_x = np.array([0,0,0,0,0,0]) 
  
     # Desired state [x, y, z, azimuth angle, elevation angle, tilt angle]
-    # [meters, meters, meters, radians, radians, radians]
-    desx = 50.0
-    desy = 50.0
-    desz = -100.0
+    # [metes, meters, meters, radians, radians, radians]
+    desx = 110.0
+    desy = 110.0
+    desz = -150.0
     desaz = np.arctan(desy/desx)
     desel = np.arctan(desz/(np.sqrt(desx**2+desy**2)))
     desired_state_xf = np.array([desx,desy,desz, desaz, desel, 0])  
@@ -218,6 +216,7 @@ def main():
                   [0.0, 0.0, 0.0, 0.0, 0.0, 0.1]]) # Penalize TILT heading error
                    
     # Launch the robot, and have it move to the desired goal destination
+    #controls = []
     for i in range(200):
         print(f'iteration = {i} seconds')
         print(f'Current State = {actual_state_x}')
@@ -232,7 +231,7 @@ def main():
         # LQR returns the optimal control input
         optimal_control_input = lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt) 
         print(f'Control Input = {optimal_control_input}')
-                                     
+        #controls.append(optimal_control_input)
          
         # We apply the optimal control to the robot
         # so we can get a new actual (estimated) state.
@@ -240,10 +239,13 @@ def main():
  
         # Stop as soon as we reach the goal
         # Feel free to change this threshold value.
-        if state_error_magnitude < 0.01:
+        if state_error_magnitude < 1.0:
             print("\nGoal Has Been Reached Successfully!")
             break
         print()
+    #for control in controls:
+        #print(control)
+        #print("\n")
  
 # Entry point for the program
 main()

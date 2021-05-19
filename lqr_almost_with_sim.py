@@ -21,9 +21,9 @@ def getB(azimuth, elevation, deltat):
         from t-1 to t due to the control commands (i.e. control inputs).
         """
         B = np.zeros((8,4))
-        B[1][0] = np.cos(elevation)*np.cos(azimuth)*deltat/mass
-        B[3][0] = np.cos(elevation)*np.sin(azimuth)*deltat/mass
-        B[5][0] = np.sin(elevation)*deltat/mass
+        B[1][0] = 0.5*np.cos(elevation)*np.cos(azimuth)*(deltat**2)/mass
+        B[3][0] = 0.5*np.cos(elevation)*np.sin(azimuth)*(deltat**2)/mass
+        B[5][0] = 0.5*np.sin(elevation)*(deltat**2)/mass
         B[6][1] = -0.07*deltat #0.07
         B[7][2] = 0.035*deltat #0.035
         B[7][3] = 0.035*deltat #0.035
@@ -152,15 +152,15 @@ def main():
     dt = 1.0
      
     # Actual state
-    actual_state_x = np.array([0,0.1,0,0.1,0,-0.1,0,0]) 
+    actual_state_x = np.array([0,1,0,1,0,-1,0,0]) 
  
     # Desired state [x, y, z, azimuth angle, elevation angle, tilt angle]
     # [meters, meters, meters, radians, radians, radians]
-    desx = 40.0
+    desx = 50.0
     desdx = 0.0
-    desy = 40.0
+    desy = 50.0
     desdy = 0.0
-    desz = -100.0
+    desz = -150.0
     desdz = 0.0
     desaz = np.arctan(desy/desx)
     desel = np.arctan(desz/(np.sqrt(desx**2+desy**2)))
@@ -193,10 +193,10 @@ def main():
     # This matrix has positive values along the diagonal and 0s elsewhere.
     # We can target control inputs where we want low actuator effort 
     # by making the corresponding value of R large. 
-    R = np.array([[200.00, 0.00, 0.00, 0.00],  # Penalty for linear velocity effort
-                  [0.00, 0.01, 0.00, 0.00],  # Penalty for rudder effort
-                  [0.00, 0.00, 0.01, 0.00],  # Penalty for left fin effort
-                  [0.00, 0.00, 0.00, 0.01]]) # Penalty for right fin effort
+    R = np.array([[1000.00, 0.00, 0.00, 0.00],  # Penalty for thrust effort
+                  [0.00, 0.00, 0.00, 0.00],  # Penalty for rudder effort
+                  [0.00, 0.00, 0.00, 0.00],  # Penalty for left fin effort
+                  [0.00, 0.00, 0.00, 0.00]]) # Penalty for right fin effort
  
     # Q matrix
     # The state cost matrix.
@@ -219,6 +219,7 @@ def main():
                   [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1]]) # Penalize ELEVATION heading error
                    
     # Launch the robot, and have it move to the desired goal destination
+    old_mag = 300.0
     for i in range(200):
         print(f'iteration = {i} seconds')
         print(f'Current State = {actual_state_x}')
@@ -227,7 +228,6 @@ def main():
         state_error = actual_state_x - desired_state_xf
         state_error_magnitude = np.linalg.norm(state_error)     
         print(f'State Error Magnitude = {state_error_magnitude}')
-         
         B = getB(actual_state_x[6], actual_state_x[7], dt)
          
         # LQR returns the optimal control input
@@ -244,6 +244,9 @@ def main():
         if state_error_magnitude < 0.01:
             print("\nGoal Has Been Reached Successfully!")
             break
+        if state_error_magnitude > old_mag+0.1:
+            break
+        old_mag = state_error_magnitude
         print()
  
 # Entry point for the program
