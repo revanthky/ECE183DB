@@ -367,41 +367,30 @@ def getB(alpha, beta, gamma, deltat):
                   [0, 0, 0, deltat]])
     return B
  
-def clip(control_input_t_minus_1):
-    # These next 6 lines of code which place limits on the angular and linear 
-    # velocities of the robot car can be removed if you desire.
-    clipped = [0,0,0,0]
-    clipped[0] = np.clip(control_input_t_minus_1[0], -max_linear_velocity, max_linear_velocity)
-    clipped[1] = np.clip(control_input_t_minus_1[1], -max_angular_velocity, max_angular_velocity)
-    clipped[2] = np.clip(control_input_t_minus_1[2], -max_angular_velocity, max_angular_velocity)
-    clipped[3] = np.clip(control_input_t_minus_1[3], -max_angular_velocity, max_angular_velocity)
+def clip_and_noise(control_input_t_minus_1):
+
+    fin_noise = random.uniform(0, 0.05*max_angular_velocity)
+    thrust_noise = random.uniform(0, 0.05*max_linear_velocity)
+    clipped = [thrust_noise, fin_noise, fin_noise, fin_noise]
+    clipped[0] += np.clip(control_input_t_minus_1[0], -max_linear_velocity, max_linear_velocity)
+    clipped[1] += np.clip(control_input_t_minus_1[1], -max_angular_velocity, max_angular_velocity)
+    clipped[2] += np.clip(control_input_t_minus_1[2], -max_angular_velocity, max_angular_velocity)
+    clipped[3] += np.clip(control_input_t_minus_1[3], -max_angular_velocity, max_angular_velocity)
     return np.asarray(clipped)
 
-def state_space_model(A, state_t_minus_1, B, control_input_t_minus_1):
-    """
-    Calculates the state at time t given the state at time t-1 and
-    the control inputs applied at time t-1
-     
-    :param: A   The A state transition matrix
-        3x3 NumPy Array
-    :param: state_t_minus_1     The state at time t-1  
-        3x1 NumPy Array given the state is [x,y,yaw angle] ---> 
-        [meters, meters, radians]
-    :param: B   The B state transition matrix
-        3x2 NumPy Array
-    :param: control_input_t_minus_1     Optimal control inputs at time t-1  
-        2x1 NumPy Array given the control input vector is 
-        [linear velocity of the car, angular velocity of the car]
-        [meters per second, radians per second]
-         
-    :return: State estimate at time t
-        3x1 NumPy Array given the state is [x,y,yaw angle] --->
-        [meters, meters, radians]
-    """
+def update_state_with_noise(A, state_t_minus_1, B, control_input_t_minus_1):
+    
+    position_noise = random.uniform(0, 0.01)
+    orientation_noise = random.uniform(0, 0.005)
     state_estimate_t = (A @ state_t_minus_1) + (B @ control_input_t_minus_1) 
-             
+    state_estimate_t[0] += position_noise
+    state_estimate_t[1] += position_noise
+    state_estimate_t[2] += position_noise
+    state_estimate_t[3] += orientation_noise
+    state_estimate_t[4] += orientation_noise
+    #state_estimate_t[5] += position_noise
     return state_estimate_t
-     
+
 def lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt):
     """
     Discrete-time linear quadratic regulator for a nonlinear system.
@@ -572,7 +561,7 @@ def go_to_waypoint(start, end_x, end_y, end_z):
          
         # LQR returns the optimal control input
         optimal_control_input = lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt) 
-        clipped_control_input = clip(optimal_control_input)
+        clipped_control_input = clip_and_noise(optimal_control_input)
         print(f'Control Input = {optimal_control_input}')
         print(f'Clipped Control = {clipped_control_input}')
         linvels.append(clipped_control_input[0])
@@ -580,7 +569,8 @@ def go_to_waypoint(start, end_x, end_y, end_z):
          
         # We apply the optimal control to the robot
         # so we can get a new actual (estimated) state.
-        actual_state_x = (A @ actual_state_x) + (B @ clipped_control_input) 
+        actual_state_x = update_state_with_noise(A, actual_state_x, B, clipped_control_input)
+        
         xpositions.append(actual_state_x[0])
         ypositions.append(actual_state_x[1])
         zpositions.append(actual_state_x[2])
@@ -600,7 +590,7 @@ def go_to_waypoint(start, end_x, end_y, end_z):
  
 # Entry point for the program
 start = [0, 0, 0]
-end = [100, 100, -120]
+end = [100, 100, -100]
 startpoint = np.array([start[0],start[1],start[2],0,0,0])
 waypoints, xs, ys, zs, obstacle_xs, obstacle_ys, obstacle_zs, test_start, test_goal = plan_path(start[0],start[1],start[2],end[0],end[1],end[2])
 realxs = []
