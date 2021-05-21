@@ -39,12 +39,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 np.set_printoptions(precision=3,suppress=True)
  
 # Optional Variables
-max_linear_velocity = 1.565 # meters per second
+#max_linear_velocity = 1.565 # meters per second
 max_angular_velocity = 0.610 # radians per second
+mass = 538.4141 #kg
+max_thrust = 587.16 #N
+avg_drag_force = 59.1613 #N
+drag_acceleration = avg_drag_force / mass
+max_acceleration = max_thrust / mass
+dt = 1.0
 
 class PathPlanner:
 
-    def __init__(self, grid, visual=False):
+    def __init__(self, grid):
         """
         Constructor of the PathPlanner Class.
         :param grid: List of lists that represents the
@@ -54,7 +60,6 @@ class PathPlanner:
         animation plays while path is found.
         """
         self.grid = grid
-        self.visual = visual
         self.heuristic = None
         self.goal_node = None
 
@@ -104,21 +109,6 @@ class PathPlanner:
         self.calc_heuristic()
         print("Start point (z, y, x): ", init)
         print("End point (z, y, x): ", goal)
-
-        if self.visual:
-            viz_map = deepcopy(self.grid)
-            fig = plt.figure(figsize=(12, 12))
-            ax = fig.add_subplot(111)
-            ax.set_title('Occupancy Grid')
-            plt.xticks(visible=False)
-            plt.yticks(visible=False)
-            plt.imshow(viz_map, origin='upper', interpolation='none', clim=COLOR_MAP)
-            ax.set_aspect('equal')
-            plt.pause(2)
-            viz_map[init[0]][init[1]] = 5  # Place Start Node
-            viz_map[goal[0]][goal[1]] = 6
-            plt.imshow(viz_map, origin='upper', interpolation='none', clim=COLOR_MAP)
-            plt.pause(2)
 
         # Different move/search direction options:
 
@@ -187,10 +177,6 @@ class PathPlanner:
         while not found and not resign:
             if len(open) == 0:
                 resign = True
-                if self.visual:
-                    plt.text(2, 10, s="No path found...", fontsize=18, style='oblique', ha='center', va='top')
-                    plt.imshow(viz_map, origin='upper', interpolation='none', clim=COLOR_MAP)
-                    plt.pause(5)
                 return -1
             else:
                 open.sort()
@@ -205,11 +191,6 @@ class PathPlanner:
 
                 if z == goal[0] and y == goal[1] and x == goal[2]:
                     found = True
-                    if self.visual:
-                        viz_map[goal[0]][goal[1]] = 7
-                        plt.text(2, 10, s="Goal found!", fontsize=18, style='oblique', ha='center', va='top')
-                        plt.imshow(viz_map, origin='upper', interpolation='none', clim=COLOR_MAP)
-                        plt.pause(2)
                 else:
                     for i in range(len(delta)):
                         z2 = z + delta[i][0]
@@ -223,10 +204,6 @@ class PathPlanner:
                                 open.append([f, g2, z2, y2, x2])
                                 closed[z2][y2][x2] = 1
                                 delta_tracker[z2][y2][x2] = i
-                                if self.visual:
-                                    viz_map[x2][y2] = 3
-                                    plt.imshow(viz_map, origin='upper', interpolation='none', clim=COLOR_MAP)
-                                    plt.pause(.5)
 
         current_z = goal[0]
         current_y = goal[1]
@@ -254,17 +231,6 @@ class PathPlanner:
             #print("\n")
             #for b in range(len(shortest_path[0])):
                 #print(shortest_path[a][b])
-
-        if self.visual:
-            for node in full_path:
-                viz_map[node[0]][node[1]] = 7
-                plt.imshow(viz_map, origin='upper', interpolation='none', clim=COLOR_MAP)
-                plt.pause(.5)
-
-            # Animate reaching goal:
-            viz_map[goal[0]][goal[1]] = 8
-            plt.imshow(viz_map, origin='upper', interpolation='none', clim=COLOR_MAP)
-            plt.pause(5)
 
         return init, full_path, deltas
 
@@ -359,36 +325,44 @@ def getB(alpha, beta, gamma, deltat):
      
     :return: B matrix ---> 3x2 NumPy array
     """
+    # [linear velocity, rudder angle, left fin angle, right fin angle]
+
     B = np.array([[np.cos(beta)*np.cos(alpha)*deltat, 0, 0, 0],
                   [np.cos(beta)*np.sin(alpha)*deltat, 0, 0, 0],
                   [np.sin(beta)*deltat, 0, 0, 0],
-                  [0, deltat, 0, 0],
-                  [0, 0, deltat, 0],
-                  [0, 0, 0, deltat]])
+                  [0, 0.2*deltat, 0, 0],
+                  [0, 0, 0.1*deltat, 0.1*deltat],
+                  [0, 0, 0.2*deltat, -0.2*deltat]])
     return B
  
-def clip_and_noise(control_input_t_minus_1):
-
+def clip_and_noise(control_input_t_minus_1, last_vel):
+    #clipped acceleration is 1.09 m/s^2 based on maximum available thrust at average speed of 2 knots (1 m/s)
+    max_linear_velocity = last_vel + max_acceleration
     fin_noise = random.uniform(0, 0.05*max_angular_velocity)
     thrust_noise = random.uniform(0, 0.05*max_linear_velocity)
-    clipped = [thrust_noise, fin_noise, fin_noise, fin_noise]
-    clipped[0] += np.clip(control_input_t_minus_1[0], -max_linear_velocity, max_linear_velocity)
-    clipped[1] += np.clip(control_input_t_minus_1[1], -max_angular_velocity, max_angular_velocity)
-    clipped[2] += np.clip(control_input_t_minus_1[2], -max_angular_velocity, max_angular_velocity)
-    clipped[3] += np.clip(control_input_t_minus_1[3], -max_angular_velocity, max_angular_velocity)
+    control_input_t_minus_1[0] += thrust_noise
+    control_input_t_minus_1[1] += fin_noise
+    control_input_t_minus_1[2] += fin_noise
+    control_input_t_minus_1[3] += fin_noise
+    clipped = [0, 0, 0, 0]
+    clipped[0] = np.clip(control_input_t_minus_1[0], -max_linear_velocity, max_linear_velocity)
+    clipped[1] = np.clip(control_input_t_minus_1[1], -max_angular_velocity, max_angular_velocity)
+    clipped[2] = np.clip(control_input_t_minus_1[2], -max_angular_velocity, max_angular_velocity)
+    clipped[3] = np.clip(control_input_t_minus_1[3], -max_angular_velocity, max_angular_velocity)
+    clipped[0] -= drag_acceleration
     return np.asarray(clipped)
 
 def update_state_with_noise(A, state_t_minus_1, B, control_input_t_minus_1):
     
-    position_noise = random.uniform(0, 0.01)
-    orientation_noise = random.uniform(0, 0.005)
+    position_noise = random.uniform(0, 0.01) #meters
+    orientation_noise = random.uniform(0, 0.005) #radians
     state_estimate_t = (A @ state_t_minus_1) + (B @ control_input_t_minus_1) 
     state_estimate_t[0] += position_noise
     state_estimate_t[1] += position_noise
     state_estimate_t[2] += position_noise
     state_estimate_t[3] += orientation_noise
     state_estimate_t[4] += orientation_noise
-    #state_estimate_t[5] += position_noise
+    state_estimate_t[5] += orientation_noise
     return state_estimate_t
 
 def lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt):
@@ -547,7 +521,11 @@ def go_to_waypoint(start, end_x, end_y, end_z):
     xpositions = []
     ypositions = []
     zpositions = []
-    linvels = []
+    linvels = [0.0]
+    ruddervels = []
+    lfvels = []
+    rfvels = []
+    old_mag = 300.0
     for i in range(200):
         print(f'iteration = {i} seconds')
         print(f'Current State = {actual_state_x}')
@@ -561,10 +539,13 @@ def go_to_waypoint(start, end_x, end_y, end_z):
          
         # LQR returns the optimal control input
         optimal_control_input = lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt) 
-        clipped_control_input = clip_and_noise(optimal_control_input)
+        clipped_control_input = clip_and_noise(optimal_control_input, linvels[-1])
         print(f'Control Input = {optimal_control_input}')
         print(f'Clipped Control = {clipped_control_input}')
         linvels.append(clipped_control_input[0])
+        ruddervels.append(clipped_control_input[1])
+        lfvels.append(clipped_control_input[2])
+        rfvels.append(clipped_control_input[3])
         #controls.append(optimal_control_input)
          
         # We apply the optimal control to the robot
@@ -582,12 +563,60 @@ def go_to_waypoint(start, end_x, end_y, end_z):
         if np.isclose(clipped_control_input, np.zeros_like(clipped_control_input)).all():
             print("\nNo Control Input")
             break
+        if state_error_magnitude > old_mag+0.1:
+            print("\nError increased, stopping")
+            break
+        old_mag = state_error_magnitude
         print()
-    return actual_state_x, xpositions, ypositions, zpositions, linvels
+    return actual_state_x, xpositions, ypositions, zpositions, linvels, ruddervels, lfvels, rfvels
     #for control in controls:
         #print(control)
         #print("\n")
- 
+
+class Robot:
+    def __init__(self, b, vel, rudder, leftFin, rightFin):
+        self.state = np.array([b[0], 0.0, b[1], 0.0, b[2], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        self.A = np.identity(12)
+        self.A[0][1] = dt
+        self.A[2][3] = dt
+        self.A[4][5] = dt
+        self.A[6][7] = dt
+        self.A[8][9] = dt
+        self.A[10][11] = dt
+        self.B = self.getB(self.state[6], self.state[8], self.state[10])
+        self.ln_acc = np.diff(np.asarray(vel))
+        self.rd_vel = np.diff(np.asarray(rudder))
+        self.lf_vel = np.diff(np.asarray(leftFin))
+        self.rf_vel = np.diff(np.asarray(rightFin))
+
+    def getB(self, alpha, beta, gamma):
+        """
+        Expresses how the state of the system changes
+        from t-1 to t due to the control commands (i.e. control inputs).
+        """
+        B = np.zeros((12,4))
+        yaw_rotation = np.array([[np.cos(alpha), -np.sin(alpha), 0.0],
+                            [np.sin(alpha), np.cos(alpha), 0.0],
+                            [0.0, 0.0, 1.0]])
+        pitch_rotation = np.array([[np.cos(beta), 0.0, np.sin(beta)],
+                            [0.0, 1.0, 0.0],
+                            [-np.sin(beta), 0.0, np.cos(beta)]])
+        roll_rotation = np.array([[1.0, 0.0, 0.0],
+                            [0.0, np.cos(gamma), -np.sin(gamma)],
+                            [0.0, np.sin(gamma), np.cos(gamma)]])
+        rotation_matrix = pitch_rotation @ yaw_rotation @ roll_rotation
+
+        B[7][1] = 0.2
+        B[9][2] = 0.1
+        B[9][3] = 0.1
+        B[11][2] = 0.2
+        B[11][3] = -0.2
+        return B
+
+    def update(self, input_):
+        self.state = (self.A @ self.state) + (self.B @ input_) 
+        self.B = self.getB(self.state[6], self.state[8], self.state[10])
+
 # Entry point for the program
 start = [0, 0, 0]
 end = [100, 100, -100]
@@ -597,23 +626,29 @@ realxs = []
 realys = []
 realzs = []
 vels = []
+ruds = []
+lfs = []
+rfs = []
 for way in waypoints:
-    startpoint, xposes, yposes, zposes, lins = go_to_waypoint(startpoint, way[0], way[1], way[2])
+    startpoint, xposes, yposes, zposes, lins, angle, angle2, angle3 = go_to_waypoint(startpoint, way[0], way[1], way[2])
     realxs.extend(xposes)
     realys.extend(yposes)
     realzs.extend(zposes)
     vels.extend(lins)
+    ruds.extend(angle)
+    lfs.extend(angle2)
+    rfs.extend(angle3)
 
 print(waypoints)
 
 ax = plt.axes(projection='3d')
 ax.plot3D(obstacle_xs, obstacle_ys, obstacle_zs, 'ro', alpha=0.3, label='obstacles')
 ax.plot3D(xs,ys,zs,label='planned path')
-ax.plot3D([test_start[0]], [test_start[1]], [-test_start[2]], 'b*', label='planned start')
-ax.plot3D([test_goal[0]], [test_goal[1]], [-test_goal[2]], 'g*', label='planned end')
-ax.plot3D(realxs,realys,realzs,'g',label='true path')
-ax.plot3D([realxs[0]], [realys[0]], [realzs[0]], 'r*', label = 'true start')
-ax.plot3D([realxs[-1]], [realys[-1]], [realzs[-1]], 'm*', label = 'true end')
+ax.plot3D([test_start[0]], [test_start[1]], [-test_start[2]], 'b*', label='plan start')
+ax.plot3D([test_goal[0]], [test_goal[1]], [-test_goal[2]], 'g*', label='plan end')
+ax.plot3D(realxs,realys,realzs,'g',label='1st order path')
+ax.plot3D([realxs[0]], [realys[0]], [realzs[0]], 'r*', label = '1st order start')
+ax.plot3D([realxs[-1]], [realys[-1]], [realzs[-1]], 'm*', label = '1st order end')
 ax.set_xlabel('x (meters)')
 ax.set_ylabel('y (meters)')
 ax.set_zlabel('z (meters)')
@@ -622,8 +657,9 @@ ax.legend(loc='center left')
 plt.show()
 
 velocities = np.asarray(vels)
-time = np.arange(len(velocities))
 accelerations = np.diff(velocities)
+print(np.mean(np.absolute(velocities)))
+time = np.arange(len(velocities))
 plt.scatter(time, velocities)
 plt.title("Control Velocity Input")
 plt.xlabel('time (seconds)')
@@ -636,3 +672,50 @@ plt.title("Control Acceleration Input (from Velocity)")
 plt.xlabel('time (seconds)')
 plt.ylabel('acceleration (meters/second^2)')
 plt.show()
+#
+## Test 1
+#rob = Robot(0, 0, 0, 0, 0, 0, 0, 0)
+#xs = []
+#ys = []
+#zs = []
+#dxs = []
+#dys = []
+#dzs = []
+#azs = []
+#els = []
+#len_ = []
+#for i in range(0,200,1):
+    #len_.append(i)
+#
+    ##cur = rob.getCurState()
+    ##goal = rob.getGoalState()
+#
+    ##print(f'iteration = {i} seconds')
+    ##print(f'Current State = {cur}')
+    ##print(f'Desired State = {goal}')
+#         
+    ##state_error = cur - goal
+    ##state_error_magnitude = np.linalg.norm(state_error)     
+    ##print(f'State Error Magnitude = {state_error_magnitude}')
+#
+    ##rob.update(rob.lqr())
+    #if i < 100:
+        #rob.update(np.array([0.05,0,-0.4,-0.4])) #second and third inputs should be same
+    #if i >= 100:
+        #rob.update(np.array([0.05,0.2,0,0])) #second and third inputs should be same
+#
+    #xs.append(rob.state[0])
+    #dxs.append(rob.state[1])
+    #ys.append(rob.state[2])
+    #dys.append(rob.state[3])
+    #zs.append(rob.state[4])
+    #dzs.append(rob.state[5])
+    #azs.append(rob.state[6])
+    #els.append(rob.state[7])
+#ax = plt.axes(projection='3d')
+#ax.plot3D(xs,ys,zs, 'bo')
+#ax.set_xlabel('x (meters)')
+#ax.set_ylabel('y (meters)')
+#ax.set_zlabel('z (meters)')
+#plt.title("Simulation Output (Simple Fake Control)")
+#plt.show()
