@@ -5,6 +5,7 @@ import math
 import random
 from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
+import time
 
 """
 BSD 2-Clause License
@@ -40,7 +41,7 @@ np.set_printoptions(precision=3,suppress=True)
  
 # Optional Variables
 #max_linear_velocity = 1.565 # meters per second
-max_angular_velocity = 0.610 # radians per second
+max_angle = 0.610 # radians per second
 mass = 538.4141 #kg
 max_thrust = 587.16 #N
 avg_drag_force = 59.1613 #N
@@ -327,71 +328,52 @@ def getB(alpha, beta, gamma, deltat):
     """
     # [linear velocity, rudder angle, left fin angle, right fin angle]
 
-    B = np.array([[np.cos(beta)*np.cos(alpha)*deltat, 0, 0, 0],
-                  [np.cos(beta)*np.sin(alpha)*deltat, 0, 0, 0],
-                  [np.sin(beta)*deltat, 0, 0, 0],
-                  [0, 0.2*deltat, 0, 0],
-                  [0, 0, 0.1*deltat, 0.1*deltat],
-                  [0, 0, 0.2*deltat, -0.2*deltat]])
-    return B
-
-def getB2(alpha, beta, gamma):
     """
     Expresses how the state of the system changes
     from t-1 to t due to the control commands (i.e. control inputs).
     """
-    B = np.zeros((12,4))
-    yaw_rotation = np.array([[np.cos(alpha), -np.sin(alpha), 0.0],
-                        [np.sin(alpha), np.cos(alpha), 0.0],
-                        [0.0, 0.0, 1.0]])
-    pitch_rotation = np.array([[np.cos(beta), 0.0, np.sin(beta)],
-                        [0.0, 1.0, 0.0],
-                        [-np.sin(beta), 0.0, np.cos(beta)]])
-    roll_rotation = np.array([[1.0, 0.0, 0.0],
-                        [0.0, np.cos(gamma), -np.sin(gamma)],
-                        [0.0, np.sin(gamma), np.cos(gamma)]])
-    rotation_matrix = yaw_rotation @ pitch_rotation @ roll_rotation
-    B[0][0] = 0.5*rotation_matrix[0][0]*dt*dt
-    B[1][0] = rotation_matrix[0][0]*dt
-    B[2][0] = 0.5*rotation_matrix[1][0]*dt*dt
-    B[3][0] = rotation_matrix[1][0]*dt
-    B[4][0] = 0.5*rotation_matrix[2][0]*dt*dt
-    B[5][0] = rotation_matrix[2][0]*dt
-    B[7][1] = 0.2
-    B[9][2] = 0.1
-    B[9][3] = 0.1
-    B[11][2] = 0.2
-    B[11][3] = -0.2
+    B = np.zeros((9,4))
+    B[0][0] = 0.5*np.cos(beta)*np.cos(alpha)*(deltat**2)
+    B[1][0] = np.cos(beta)*np.cos(alpha)*deltat
+    B[2][0] = 0.5*np.cos(beta)*np.sin(alpha)*(deltat**2)
+    B[3][0] = np.cos(beta)*np.sin(alpha)*deltat
+    B[4][0] = 0.5*np.sin(beta)*(deltat**2)
+    B[5][0] = np.sin(beta)*deltat
+    B[6][1] = 0.2*deltat #0.07
+    B[7][2] = 0.1*deltat #0.035
+    B[7][3] = 0.1*deltat #0.035
+    B[8][2] = 0.2*deltat
+    B[8][3] = -0.2*deltat
     return B
  
-def clip_and_noise(control_input_t_minus_1, last_vel):
+def clip_and_noise(control_input_t_minus_1):
     #clipped acceleration is 1.09 m/s^2 based on maximum available thrust at average speed of 2 knots (1 m/s)
-    max_linear_velocity = last_vel + max_acceleration
-    fin_noise = random.uniform(0, 0.05*max_angular_velocity)
-    thrust_noise = random.uniform(0, 0.05*max_linear_velocity)
+    
+    fin_noise = np.random.normal(0, 0.05*max_angle, 1)
+    thrust_noise = np.random.normal(0, 0.05*max_acceleration, 1)
     control_input_t_minus_1[0] += thrust_noise
     control_input_t_minus_1[1] += fin_noise
     control_input_t_minus_1[2] += fin_noise
     control_input_t_minus_1[3] += fin_noise
     clipped = [0, 0, 0, 0]
-    clipped[0] = np.clip(control_input_t_minus_1[0], -max_linear_velocity, max_linear_velocity)
-    clipped[1] = np.clip(control_input_t_minus_1[1], -max_angular_velocity, max_angular_velocity)
-    clipped[2] = np.clip(control_input_t_minus_1[2], -max_angular_velocity, max_angular_velocity)
-    clipped[3] = np.clip(control_input_t_minus_1[3], -max_angular_velocity, max_angular_velocity)
+    clipped[0] = np.clip(control_input_t_minus_1[0], -max_acceleration, max_acceleration)
+    clipped[1] = np.clip(control_input_t_minus_1[1], -max_angle, max_angle)
+    clipped[2] = np.clip(control_input_t_minus_1[2], -max_angle, max_angle)
+    clipped[3] = np.clip(control_input_t_minus_1[3], -max_angle, max_angle)
     clipped[0] -= drag_acceleration
     return np.asarray(clipped)
 
 def update_state_with_noise(A, state_t_minus_1, B, control_input_t_minus_1):
     
-    position_noise = random.uniform(0, 0.01) #meters
-    orientation_noise = random.uniform(0, 0.005) #radians
+    velocity_noise = np.random.normal(0, 0.01, 1) #meters
+    orientation_noise = np.random.normal(0, 0.005, 1) #radians
     state_estimate_t = (A @ state_t_minus_1) + (B @ control_input_t_minus_1) 
-    state_estimate_t[0] += position_noise
-    state_estimate_t[1] += position_noise
-    state_estimate_t[2] += position_noise
-    state_estimate_t[3] += orientation_noise
-    state_estimate_t[4] += orientation_noise
-    state_estimate_t[5] += orientation_noise
+    #state_estimate_t[1] += velocity_noise
+    #state_estimate_t[3] += velocity_noise
+    #state_estimate_t[5] += velocity_noise
+    #state_estimate_t[6] += orientation_noise
+    #state_estimate_t[7] += orientation_noise
+    #state_estimate_t[8] += orientation_noise
     return state_estimate_t
 
 def lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt):
@@ -430,7 +412,7 @@ def lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt):
     # The optimal solution is obtained recursively, starting at the last 
     # timestep and working backwards.
     # You can play with this number
-    N = 50
+    N = 25
  
     # Create a list of N + 1 elements
     P = [None] * (N + 1)
@@ -483,21 +465,18 @@ def go_to_waypoint(start, end_x, end_y, end_z):
     dt = 1.0
      
     # Actual state
-    actual_state_x = start
-    #actual_2nd_state = start_2 
-
-    # Desired state [x, y, z, azimuth angle, elevation angle, tilt angle]
-    # [metes, meters, meters, radians, radians, radians]
+    actual_state_x = start 
+ 
+    # Desired state [x, dx, y, dy, z, dz, azimuth angle, elevation angle, tilt angle]
     desx = end_x
     desy = end_y
     desz = end_z
     x_diff = desx - actual_state_x[0]
-    y_diff = desy - actual_state_x[1]
-    z_diff = desz - actual_state_x[2]
+    y_diff = desy - actual_state_x[2]
+    z_diff = desz - actual_state_x[4]
     desaz = np.arctan(y_diff/x_diff)
     desel = np.arctan(z_diff/(np.sqrt(x_diff**2+y_diff**2)))
-    desired_state_xf = np.array([desx, desy, desz, desaz, desel, 0])  
-    #desired_2nd_state = np.array([desx, 0.0, desy, 0.0, desz, 0.0, desaz, 0.0, desel, 0.0, 0.0, 0.0])
+    desired_state_xf = np.array([desx, 0.0, desy, 0.0, desz, 0.0, desaz, desel, 0.0])  
      
     # A matrix
     # 3x3 matrix -> number of states x number of states matrix
@@ -506,20 +485,16 @@ def go_to_waypoint(start, end_x, end_y, end_z):
     # Typically a robot on wheels only drives when the wheels are told to turn.
     # For this case, A is the identity matrix.
     # Note: A is sometimes F in the literature.
-    A = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                  [0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
-                  [0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
-                  [0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-                  [0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
-                  [0.0, 0.0, 0.0, 0.0, 0.0, 1.0]])
-    #A2 = np.identity(12)
-    #A2[0][1] = dt
-    #A2[2][3] = dt
-    #A2[4][5] = dt
-    #A2[6][7] = dt
-    #A2[8][9] = dt
-    #A2[10][11] = dt
-
+    A = np.array([[1.0, dt, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                  [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                  [0.0, 0.0, 1.0, dt, 0.0, 0.0, 0.0, 0.0, 0.0],
+                  [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                  [0.0, 0.0, 0.0, 0.0, 1.0, dt, 0.0, 0.0, 0.0],
+                  [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+                  [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                  [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+                  [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]])
+ 
     # R matrix
     # The control input cost matrix
     # Experiment with different R matrices
@@ -531,10 +506,10 @@ def go_to_waypoint(start, end_x, end_y, end_z):
     # This matrix has positive values along the diagonal and 0s elsewhere.
     # We can target control inputs where we want low actuator effort 
     # by making the corresponding value of R large. 
-    R = np.array([[200.00, 0.00, 0.00, 0.00],  # Penalty for linear velocity effort
-                  [0.00, 0.01, 0.00, 0.00],  # Penalty for azimuth angular velocity effort
-                  [0.00, 0.00, 0.01, 0.00],  # Penalty for elevation angular velocity effort
-                  [0.00, 0.00, 0.00, 0.01]]) # Penalty for tilt angular velocity effort
+    R = np.array([[750.00, 0.00, 0.00, 0.00],  # Penalty for thrust effort
+                  [0.00, 0.01, 0.00, 0.00],  # Penalty for rudder effort
+                  [0.00, 0.00, 0.01, 0.00],  # Penalty for left fin effort
+                  [0.00, 0.00, 0.00, 0.01]]) # Penalty for right fin effort
  
     # Q matrix
     # The state cost matrix.
@@ -547,191 +522,170 @@ def go_to_waypoint(start, end_x, end_y, end_z):
     # Q has positive values along the diagonal and zeros elsewhere.
     # Q enables us to target states where we want low error by making the 
     # corresponding value of Q large.
-    Q = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize X position error 
-                  [0.0, 10.0, 0.0, 0.0, 0.0, 0.0],  # Penalize Y position error 
-                  [0.0, 0.0, 10.0, 0.0, 0.0, 0.0],  # Penalize Z position error 
-                  [0.0, 0.0, 0.0, 0.1, 0.0, 0.0],  # Penalize AZIMUTH heading error
-                  [0.0, 0.0, 0.0, 0.0, 0.1, 0.0],  # Penalize ELEVATION heading error
-                  [0.0, 0.0, 0.0, 0.0, 0.0, 0.1]]) # Penalize TILT heading error
-                   
+    Q = np.array([[0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize X position error 
+                  [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],   # Penalize dX error
+                  [0.0, 0.0, 0.001, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize Y position error 
+                  [0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize dY error 
+                  [0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0], # Penalize Z position error
+                  [0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0], # Penalize dZ error
+                  [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0],  # Penalize AZIMUTH heading error
+                  [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0, 0.0], # Penalize ELEVATION heading error
+                  [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1]]) # Penalize TILT heading error
+             
     # Launch the robot, and have it move to the desired goal destination
     #controls = []
     xpositions = []
     ypositions = []
     zpositions = []
-    x2pos = []
-    y2pos = []
-    z2pos = []
-    linvels = [0.0]
-    ruddervels = [0.0]
-    lfvels = [0.0]
-    rfvels = [0.0]
+    #linvels = [0.0]
+    #ruddervels = [0.0]
+    #lfvels = [0.0]
+    #rfvels = [0.0]
     old_mag = 300.0
-
-    for i in range(200):
+    for i in range(360):
         print(f'iteration = {i} seconds')
         print(f'Current State = {actual_state_x}')
         print(f'Desired State = {desired_state_xf}')
          
         state_error = actual_state_x - desired_state_xf
+        concerns = np.array([state_error[0], state_error[2], state_error[4]])
         state_error_magnitude = np.linalg.norm(state_error)     
         print(f'State Error Magnitude = {state_error_magnitude}')
-        #state_error_2 = actual_2nd_state - desired_2nd_state
-        #state_error_magnitude_2 = np.linalg.norm(state_error_2)     
-        #print(f'Second Order State Error Magnitude = {state_error_magnitude_2}')
+        concerns_magnitude = np.linalg.norm(concerns)
+        print(f'Position Error Magnitude = {concerns_magnitude}')
+        B = getB(actual_state_x[6], actual_state_x[7], actual_state_x[8], dt)
          
-        B = getB(actual_state_x[3], actual_state_x[4], actual_state_x[5], dt)
-        #B2 = getB2(actual_2nd_state[6], actual_2nd_state[8], actual_2nd_state[10])
-
         # LQR returns the optimal control input
         optimal_control_input = lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt) 
-        clipped_control_input = clip_and_noise(optimal_control_input, linvels[-1])
         print(f'Control Input = {optimal_control_input}')
-        print(f'Clipped Control = {clipped_control_input}')
-
-        linvels.append(clipped_control_input[0])
-        ruddervels.append(clipped_control_input[1])
-        lfvels.append(clipped_control_input[2])
-        rfvels.append(clipped_control_input[3])
-
-        #clipped_2nd_input = clipped_control_input
-        #clipped_2nd_input[0] -= linvels[-1]
-        #controls.append(optimal_control_input)
+                                     
          
         # We apply the optimal control to the robot
         # so we can get a new actual (estimated) state.
-        actual_state_x = update_state_with_noise(A, actual_state_x, B, clipped_control_input)
-        #actual_2nd_state = (A2 @ actual_2nd_state) + (B2 @ clipped_2nd_input)
+        actual_state_x = update_state_with_noise(A, actual_state_x, B, optimal_control_input)  
         xpositions.append(actual_state_x[0])
-        ypositions.append(actual_state_x[1])
-        zpositions.append(actual_state_x[2])
-        #x2pos.append(actual_2nd_state[0])
-        #y2pos.append(actual_2nd_state[2])
-        #z2pos.append(actual_2nd_state[4])
+        ypositions.append(actual_state_x[2])
+        zpositions.append(actual_state_x[4])
 
         # Stop as soon as we reach the goal
         # Feel free to change this threshold value.
-        if state_error_magnitude < 1.0:
+        if state_error_magnitude < 1.0 or concerns_magnitude < 3.8:
             print("\nGoal Has Been Reached Successfully!")
             break
-        if np.isclose(clipped_control_input, np.zeros_like(clipped_control_input)).all():
-            print("\nNo Control Input")
-            break
         if state_error_magnitude > old_mag+0.2:
-            print("\nError increased, stopping")
             break
         old_mag = state_error_magnitude
         print()
-    return actual_state_x, xpositions, ypositions, zpositions, linvels, ruddervels, lfvels, rfvels
-    #for control in controls:
-        #print(control)
-        #print("\n")
-
-class Robot:
-    def __init__(self, b, vel, rudder, leftFin, rightFin):
-        self.state = np.array([b[0], 0.0, b[1], 0.0, b[2], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        self.A = np.identity(12)
-        self.A[0][1] = dt
-        self.A[2][3] = dt
-        self.A[4][5] = dt
-        self.A[6][7] = dt
-        self.A[8][9] = dt
-        self.A[10][11] = dt
-        self.B = self.getB(self.state[6], self.state[8], self.state[10])
-        self.ln_acc = np.diff(np.asarray(vel))
-        self.rd_pos = np.asarray(rudder)
-        self.lf_pos = np.asarray(leftFin)
-        self.rf_pos = np.asarray(rightFin)
-
-    def getB(self, alpha, beta, gamma):
-        """
-        Expresses how the state of the system changes
-        from t-1 to t due to the control commands (i.e. control inputs).
-        """
-        B = np.zeros((12,4))
-        yaw_rotation = np.array([[np.cos(alpha), -np.sin(alpha), 0.0],
-                            [np.sin(alpha), np.cos(alpha), 0.0],
-                            [0.0, 0.0, 1.0]])
-        pitch_rotation = np.array([[np.cos(beta), 0.0, np.sin(beta)],
-                            [0.0, 1.0, 0.0],
-                            [-np.sin(beta), 0.0, np.cos(beta)]])
-        roll_rotation = np.array([[1.0, 0.0, 0.0],
-                            [0.0, np.cos(gamma), -np.sin(gamma)],
-                            [0.0, np.sin(gamma), np.cos(gamma)]])
-        rotation_matrix = yaw_rotation @ pitch_rotation @ roll_rotation
-        B[0][0] = 0.5*rotation_matrix[0][0]*dt*dt
-        B[1][0] = rotation_matrix[0][0]*dt
-        B[2][0] = 0.5*rotation_matrix[1][0]*dt*dt
-        B[3][0] = rotation_matrix[1][0]*dt
-        B[4][0] = 0.5*rotation_matrix[2][0]*dt*dt
-        B[5][0] = rotation_matrix[2][0]*dt
-        B[7][1] = 0.2
-        B[9][2] = 0.1
-        B[9][3] = 0.1
-        B[11][2] = 0.2
-        B[11][3] = -0.2
-        return B
-
-    def update(self, input_):
-        self.state = (self.A @ self.state) + (self.B @ input_) 
-        self.B = self.getB(self.state[6], self.state[8], self.state[10])
-
-    def run(self):
-        xpos = [self.state[0]]
-        ypos = [self.state[2]]
-        zpos = [self.state[4]]
-        length = min(len(self.ln_acc), len(self.rd_pos), len(self.lf_pos), len(self.rf_pos))
-        for i in range(length):
-            self.update([self.ln_acc[i], self.rd_pos[i], self.lf_pos[i], self.rf_pos[i]])
-            xpos.append(self.state[0])
-            ypos.append(self.state[2])
-            zpos.append(self.state[4])
-        return xpos, ypos, zpos
+    #return actual_state_x, xpositions, ypositions, zpositions, linvels, ruddervels, lfvels, rfvels
+    return actual_state_x, xpositions, ypositions, zpositions
+#
+#class Robot:
+    #def __init__(self, b, vel, rudder, leftFin, rightFin):
+        #self.state = np.array([b[0], 0.0, b[1], 0.0, b[2], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        #self.A = np.identity(12)
+        #self.A[0][1] = dt
+        #self.A[2][3] = dt
+        #self.A[4][5] = dt
+        #self.A[6][7] = dt
+        #self.A[8][9] = dt
+        #self.A[10][11] = dt
+        #self.B = self.getB(self.state[6], self.state[8], self.state[10])
+        #self.ln_acc = np.diff(np.asarray(vel))
+        #self.rd_pos = np.asarray(rudder)
+        #self.lf_pos = np.asarray(leftFin)
+        #self.rf_pos = np.asarray(rightFin)
+#
+    #def getB(self, alpha, beta, gamma):
+        #"""
+        #Expresses how the state of the system changes
+        #from t-1 to t due to the control commands (i.e. control inputs).
+        #"""
+        #B = np.zeros((12,4))
+        #yaw_rotation = np.array([[np.cos(alpha), -np.sin(alpha), 0.0],
+                            #[np.sin(alpha), np.cos(alpha), 0.0],
+                            #[0.0, 0.0, 1.0]])
+        #pitch_rotation = np.array([[np.cos(beta), 0.0, np.sin(beta)],
+                            #[0.0, 1.0, 0.0],
+                            #[-np.sin(beta), 0.0, np.cos(beta)]])
+        #roll_rotation = np.array([[1.0, 0.0, 0.0],
+                            #[0.0, np.cos(gamma), -np.sin(gamma)],
+                            #[0.0, np.sin(gamma), np.cos(gamma)]])
+        #rotation_matrix = yaw_rotation @ pitch_rotation @ roll_rotation
+        #B[0][0] = 0.5*rotation_matrix[0][0]*dt*dt
+        #B[1][0] = rotation_matrix[0][0]*dt
+        #B[2][0] = 0.5*rotation_matrix[1][0]*dt*dt
+        #B[3][0] = rotation_matrix[1][0]*dt
+        #B[4][0] = 0.5*rotation_matrix[2][0]*dt*dt
+        #B[5][0] = rotation_matrix[2][0]*dt
+        #B[7][1] = 0.2
+        #B[9][2] = 0.1
+        #B[9][3] = 0.1
+        #B[11][2] = 0.2
+        #B[11][3] = -0.2
+        #return B
+#
+    #def update(self, input_):
+        #self.state = (self.A @ self.state) + (self.B @ input_) 
+        #self.B = self.getB(self.state[6], self.state[8], self.state[10])
+#
+    #def run(self):
+        #xpos = [self.state[0]]
+        #ypos = [self.state[2]]
+        #zpos = [self.state[4]]
+        #length = min(len(self.ln_acc), len(self.rd_pos), len(self.lf_pos), len(self.rf_pos))
+        #for i in range(length):
+            #self.update([self.ln_acc[i], self.rd_pos[i], self.lf_pos[i], self.rf_pos[i]])
+            #xpos.append(self.state[0])
+            #ypos.append(self.state[2])
+            #zpos.append(self.state[4])
+        #return xpos, ypos, zpos
 
 # Entry point for the program
 start = [0, 0, 0]
 end = [100, 100, -100]
-startpoint = np.array([start[0],start[1],start[2],0,0,0])
-#tartpoint_2 = np.array([start[0], 0.0, start[1], 0.0, start[2], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+startpoint = np.array([start[0], 0, start[1], 0, start[2], 0, 0, 0, 0])
 waypoints, xs, ys, zs, obstacle_xs, obstacle_ys, obstacle_zs, test_start, test_goal = plan_path(start[0],start[1],start[2],end[0],end[1],end[2])
 realxs = []
 realys = []
 realzs = []
-vels = []
+accs = []
 ruds = []
 lfs = []
 rfs = []
+waypoints = waypoints[1:3] + waypoints[-1:]
 for way in waypoints:
-    startpoint, xposes, yposes, zposes, lins, angle, angle2, angle3 = go_to_waypoint(startpoint, way[0], way[1], way[2])
+    #startpoint, xposes, yposes, zposes, lins, angle, angle2, angle3 = go_to_waypoint(startpoint, way[0], way[1], way[2])
+    startpoint, xposes, yposes, zposes = go_to_waypoint(startpoint, way[0], way[1], way[2])
     realxs.extend(xposes)
     realys.extend(yposes)
     realzs.extend(zposes)
-    vels.extend(lins)
-    ruds.extend(angle)
-    lfs.extend(angle2)
-    rfs.extend(angle3)
+    time.sleep(2)
+    #accs.extend(lins)
+    #ruds.extend(angle)
+    #lfs.extend(angle2)
+    #rfs.extend(angle3)
 
 print(waypoints)
 
-rob = Robot(start, vels, ruds, lfs, rfs)
-print(len(vels), len(ruds), len(lfs), len(rfs))
-second_xs, second_ys, second_zs = rob.run()
+#rob = Robot(start, vels, ruds, lfs, rfs)
+#print(len(vels), len(ruds), len(lfs), len(rfs))
+#second_xs, second_ys, second_zs = rob.run()
 
 ax = plt.axes(projection='3d')
 ax.plot3D(obstacle_xs, obstacle_ys, obstacle_zs, 'ro', alpha=0.3, label='obstacles')
 ax.plot3D(xs,ys,zs,label='planned path')
 ax.plot3D([test_start[0]], [test_start[1]], [-test_start[2]], 'b*', label='plan start')
 ax.plot3D([test_goal[0]], [test_goal[1]], [-test_goal[2]], 'g*', label='plan end')
-ax.plot3D(realxs,realys,realzs,'g',label='1st order path')
-ax.plot3D([realxs[0]], [realys[0]], [realzs[0]], 'r*', label = '1st order start')
-ax.plot3D([realxs[-1]], [realys[-1]], [realzs[-1]], 'm*', label = '1st order end')
+ax.plot3D(realxs,realys,realzs,'g',label='2nd order path')
+ax.plot3D([realxs[0]], [realys[0]], [realzs[0]], 'r*', label = '2nd order start')
+ax.plot3D([realxs[-1]], [realys[-1]], [realzs[-1]], 'm*', label = '2nd order end')
 #ax.plot3D(second_xs, second_ys, second_zs, 'k', label = '2nd order path')
 #ax.plot3D([second_xs[0]], [second_ys[0]], [second_zs[0]], 'c*', label = '2nd order start')
 #ax.plot3D([second_xs[-1]], [second_ys[-1]], [second_zs[-1]], 'y*', label = '2nd order end')
 ax.set_xlabel('x (meters)')
 ax.set_ylabel('y (meters)')
 ax.set_zlabel('z (meters)')
-plt.title("Planned Path vs 1st order Waypoint Control Path vs 2nd order Waypoint Control Path")
+plt.title("Planned Path vs 2nd order Waypoint Control Path")
 ax.legend(loc='center left')
 plt.show()
 
