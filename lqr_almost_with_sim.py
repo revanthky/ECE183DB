@@ -16,48 +16,29 @@ np.set_printoptions(precision=3,suppress=True)
 #max_linear_velocity = 3.0 # meters per second
 #max_angular_velocity = 1.5708 # radians per second
 mass = 1.0
+dt = 1.0
 
-def getB(azimuth, elevation, tilt, deltat):
+def getB(azimuth, elevation, tilt):
         """
         Expresses how the state of the system changes
         from t-1 to t due to the control commands (i.e. control inputs).
         """
         B = np.zeros((9,4))
-        B[0][0] = 0.5*np.cos(elevation)*np.cos(azimuth)*(deltat**2)/mass
-        B[1][0] = np.cos(elevation)*np.cos(azimuth)*deltat/mass
-        B[2][0] = 0.5*np.cos(elevation)*np.sin(azimuth)*(deltat**2)/mass
-        B[3][0] = np.cos(elevation)*np.sin(azimuth)*deltat/mass
-        B[4][0] = 0.5*np.sin(elevation)*(deltat**2)/mass
-        B[5][0] = np.sin(elevation)*deltat/mass
-        B[6][1] = 0.2*deltat #0.07
-        B[7][2] = 0.1*deltat #0.035
-        B[7][3] = 0.1*deltat #0.035
-        B[8][2] = 0.2*deltat
-        B[8][3] = -0.2*deltat
+        B[0][0] = 0.5*np.cos(elevation)*np.cos(azimuth)*(dt**2)
+        B[1][0] = np.cos(elevation)*np.cos(azimuth)*dt
+        B[2][0] = 0.5*np.cos(elevation)*np.sin(azimuth)*(dt**2)
+        B[3][0] = np.cos(elevation)*np.sin(azimuth)*dt
+        B[4][0] = 0.5*np.sin(elevation)*(dt**2)
+        B[5][0] = np.sin(elevation)*dt
+        B[6][1] = 0.2
+        B[7][2] = 0.1
+        B[7][3] = 0.1
+        B[8][2] = 0.2
+        B[8][3] = -0.2
         return B
  
  
 def state_space_model(A, state_t_minus_1, B, control_input_t_minus_1):
-    """
-    Calculates the state at time t given the state at time t-1 and
-    the control inputs applied at time t-1
-     
-    :param: A   The A state transition matrix
-        3x3 NumPy Array
-    :param: state_t_minus_1     The state at time t-1  
-        3x1 NumPy Array given the state is [x,y,yaw angle] ---> 
-        [meters, meters, radians]
-    :param: B   The B state transition matrix
-        3x2 NumPy Array
-    :param: control_input_t_minus_1     Optimal control inputs at time t-1  
-        2x1 NumPy Array given the control input vector is 
-        [linear velocity of the car, angular velocity of the car]
-        [meters per second, radians per second]
-         
-    :return: State estimate at time t
-        3x1 NumPy Array given the state is [x,y,yaw angle] --->
-        [meters, meters, radians]
-    """
     # These next 6 lines of code which place limits on the angular and linear 
     # velocities of the robot car can be removed if you desire.
     #control_input_t_minus_1[0] = np.clip(control_input_t_minus_1[0],
@@ -70,7 +51,7 @@ def state_space_model(A, state_t_minus_1, B, control_input_t_minus_1):
              
     return state_estimate_t
      
-def lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt):
+def lqr(actual_state_x, desired_state_xf, Q, R, A, B):
     """
     Discrete-time linear quadratic regulator for a nonlinear system.
  
@@ -153,28 +134,23 @@ def lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt):
     #u_star = K.dot(x_error)
     return u_star
  
-def go_to_waypoint(start, end):
-     
-    # Let the time interval be 1.0 seconds
-    dt = 1.0
+def main():
      
     # Actual state
-    #actual_state_x = np.array([0,0,0,0,0,0,0,0,0]) 
-    actual_state_x = start
+    actual_state_x = np.array([0,0,0,0,0,0,0,0,0]) 
  
     # Desired state [x, y, z, azimuth angle, elevation angle, tilt angle]
     # [meters, meters, meters, radians, radians, radians]
     desx = 100.0
     desdx = 0.0
-    desy = 50.0
+    desy = 100.0
     desdy = 0.0
     desz = -100.0
     desdz = 0.0
     desaz = np.arctan(desy/desx)
     desel = np.arctan(desz/(np.sqrt(desx**2+desy**2)))
     destl = 0.0
-    #desired_state_xf = np.array([desx,desdx,desy,desdy,desz,desdz,desaz,desel,destl])  
-    desired_state_xf = end
+    desired_state_xf = np.array([desx,desdx,desy,desdy,desz,desdz,desaz,desel,destl])  
     # A matrix
     # 3x3 matrix -> number of states x number of states matrix
     # Expresses how the state of the system [x,y,yaw] changes 
@@ -219,9 +195,9 @@ def go_to_waypoint(start, end):
     # Q has positive values along the diagonal and zeros elsewhere.
     # Q enables us to target states where we want low error by making the 
     # corresponding value of Q large.
-    Q = np.array([[10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize X position error 
-                  [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],   # Penalize dX error
-                  [0.0, 0.0, 0.001, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize Y position error 
+    Q = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize X position error 
+                  [0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],   # Penalize dX error
+                  [0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize Y position error 
                   [0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize dY error 
                   [0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0], # Penalize Z position error
                   [0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0], # Penalize dZ error
@@ -231,9 +207,6 @@ def go_to_waypoint(start, end):
                    
     # Launch the robot, and have it move to the desired goal destination
     old_mag = 300.0
-    a = []
-    b = []
-    c = []
     for i in range(360):
         print(f'iteration = {i} seconds')
         print(f'Current State = {actual_state_x}')
@@ -245,19 +218,15 @@ def go_to_waypoint(start, end):
         print(f'State Error Magnitude = {state_error_magnitude}')
         concerns_magnitude = np.linalg.norm(concerns)
         print(f'Position Error Magnitude = {concerns_magnitude}')
-        B = getB(actual_state_x[6], actual_state_x[7], actual_state_x[8], dt)
+        B = getB(actual_state_x[6], actual_state_x[7], actual_state_x[8])
          
         # LQR returns the optimal control input
-        optimal_control_input = lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt) 
+        optimal_control_input = lqr(actual_state_x, desired_state_xf, Q, R, A, B) 
         print(f'Control Input = {optimal_control_input}')
                                      
-         
         # We apply the optimal control to the robot
         # so we can get a new actual (estimated) state.
         actual_state_x = state_space_model(A, actual_state_x, B, optimal_control_input)  
-        a.append(actual_state_x[0])
-        b.append(actual_state_x[2])
-        c.append(actual_state_x[4])
         # Stop as soon as we reach the goal
         # Feel free to change this threshold value.
         if state_error_magnitude < 1.0 or concerns_magnitude < 3.8:
@@ -267,41 +236,6 @@ def go_to_waypoint(start, end):
             break
         old_mag = state_error_magnitude
         print()
-    return actual_state_x, a, b, c
 
 # Entry point for the program
-ways = []
-true_state = np.array([0,0,0,0,0,0,0,0,0])
-desx = 10.0
-desy = 20.0
-desz = -50.0
-desaz = np.arctan(desy/desx)
-desel = np.arctan(desz/(np.sqrt(desx**2+desy**2)))
-desired_state_xf = np.array([desx,0.0,desy,0.0,desz,0.0,desaz,desel,0.0])
-ways.append(desired_state_xf)
-
-desx = 50.0
-desy = 50.0
-desz = -100.0
-desaz = np.arctan(desy/desx)
-desel = np.arctan(desz/(np.sqrt(desx**2+desy**2)))
-desired_state_xf = np.array([desx,0.0,desy,0.0,desz,0.0,desaz,desel,0.0])
-ways.append(desired_state_xf)
-xs = []
-ys = []
-zs = []
-for way in ways:
-    true_state, x, y, z = go_to_waypoint(true_state, way)
-    xs.extend(x)
-    ys.extend(y)
-    zs.extend(z)
-    time.sleep(2)
-
-ax = plt.axes(projection='3d')
-ax.plot3D(xs, ys, zs)
-ax.plot3D([10], [20], [-50], 'r*')
-ax.plot3D([50], [50], [-100], 'b*')
-ax.set_xlabel('x (meters)')
-ax.set_ylabel('y (meters)')
-ax.set_zlabel('z (meters)')
-plt.show()
+main()

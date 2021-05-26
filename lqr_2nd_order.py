@@ -6,7 +6,7 @@ import random
 from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 import time
-
+import itertools
 """
 BSD 2-Clause License
 Copyright (c) 2017, Andrew Dahdouh
@@ -313,37 +313,39 @@ def plan_path(sx, sy, sz, ex, ey, ez):
 
     return waypoints, xs, ys, zs, obstacle_xs, obstacle_ys, obstacle_zs, test_start, test_goal
 
-def getB(alpha, beta, gamma, deltat):
-    """
-    Calculates and returns the B matrix
-    3x2 matix ---> number of states x number of control inputs
- 
-    Expresses how the state of the system [x,y,yaw] changes
-    from t-1 to t due to the control commands (i.e. control inputs).
-     
-    :param yaw: The yaw angle (rotation angle around the z axis) in radians 
-    :param deltat: The change in time from timestep t-1 to t in seconds
-     
-    :return: B matrix ---> 3x2 NumPy array
-    """
-    # [linear velocity, rudder angle, left fin angle, right fin angle]
+def getB(alpha, beta, gamma):
 
-    """
-    Expresses how the state of the system changes
-    from t-1 to t due to the control commands (i.e. control inputs).
-    """
     B = np.zeros((9,4))
-    B[0][0] = 0.5*np.cos(beta)*np.cos(alpha)*(deltat**2)
-    B[1][0] = np.cos(beta)*np.cos(alpha)*deltat
-    B[2][0] = 0.5*np.cos(beta)*np.sin(alpha)*(deltat**2)
-    B[3][0] = np.cos(beta)*np.sin(alpha)*deltat
-    B[4][0] = 0.5*np.sin(beta)*(deltat**2)
-    B[5][0] = np.sin(beta)*deltat
-    B[6][1] = 0.2*deltat #0.07
-    B[7][2] = 0.1*deltat #0.035
-    B[7][3] = 0.1*deltat #0.035
-    B[8][2] = 0.2*deltat
-    B[8][3] = -0.2*deltat
+    yaw_rotation = np.array([[np.cos(alpha), -np.sin(alpha), 0.0],
+                        [np.sin(alpha), np.cos(alpha), 0.0],
+                        [0.0, 0.0, 1.0]])
+    pitch_rotation = np.array([[np.cos(beta), 0.0, -np.sin(beta)],
+                        [0.0, 1.0, 0.0],
+                        [np.sin(beta), 0.0, np.cos(beta)]])
+    roll_rotation = np.array([[1.0, 0.0, 0.0],
+                        [0.0, np.cos(gamma), -np.sin(gamma)],
+                        [0.0, np.sin(gamma), np.cos(gamma)]])
+    rotation_matrix = yaw_rotation @ pitch_rotation @ roll_rotation
+    #print(rotation_matrix[0][0])
+    #print(np.cos(beta)*np.cos(alpha))
+    #print(rotation_matrix[1][0])
+    #print(np.cos(beta)*np.sin(alpha))
+    #print(rotation_matrix[2][0])
+    #print(np.sin(beta))
+    #rotation_matrix[0][0] = np.cos(beta)*np.cos(alpha)
+    #rotation_matrix[1][0] = np.cos(beta)*np.sin(alpha)
+    #rotation_matrix[2][0] = np.sin(beta)
+    B[0][0] = 0.5*rotation_matrix[0][0]*dt*dt
+    B[1][0] = rotation_matrix[0][0]*dt
+    B[2][0] = 0.5*rotation_matrix[1][0]*dt*dt
+    B[3][0] = rotation_matrix[1][0]*dt
+    B[4][0] = 0.5*rotation_matrix[2][0]*dt*dt
+    B[5][0] = rotation_matrix[2][0]*dt
+    B[6][1] = 0.2*dt #0.07
+    B[7][2] = 0.1*dt #0.035
+    B[7][3] = 0.1*dt #0.035
+    B[8][2] = 0.2*dt
+    B[8][3] = -0.2*dt
     return B
  
 def clip_and_noise(control_input_t_minus_1):
@@ -376,7 +378,7 @@ def update_state_with_noise(A, state_t_minus_1, B, control_input_t_minus_1):
     #state_estimate_t[8] += orientation_noise
     return state_estimate_t
 
-def lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt):
+def lqr(actual_state_x, desired_state_xf, Q, R, A, B):
     """
     Discrete-time linear quadratic regulator for a nonlinear system.
  
@@ -412,7 +414,7 @@ def lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt):
     # The optimal solution is obtained recursively, starting at the last 
     # timestep and working backwards.
     # You can play with this number
-    N = 25
+    N = 50
  
     # Create a list of N + 1 elements
     P = [None] * (N + 1)
@@ -459,10 +461,8 @@ def lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt):
     #u_star = K.dot(x_error)
     return u_star
  
-def go_to_waypoint(start, end_x, end_y, end_z):
+def go_to_waypoint(start, end_x, end_y, end_z, Q_costs):
      
-    # Let the time interval be 1.0 seconds
-    dt = 1.0
      
     # Actual state
     actual_state_x = start 
@@ -506,7 +506,7 @@ def go_to_waypoint(start, end_x, end_y, end_z):
     # This matrix has positive values along the diagonal and 0s elsewhere.
     # We can target control inputs where we want low actuator effort 
     # by making the corresponding value of R large. 
-    R = np.array([[750.00, 0.00, 0.00, 0.00],  # Penalty for thrust effort
+    R = np.array([[800.00, 0.00, 0.00, 0.00],  # Penalty for thrust effort
                   [0.00, 0.01, 0.00, 0.00],  # Penalty for rudder effort
                   [0.00, 0.00, 0.01, 0.00],  # Penalty for left fin effort
                   [0.00, 0.00, 0.00, 0.01]]) # Penalty for right fin effort
@@ -522,16 +522,17 @@ def go_to_waypoint(start, end_x, end_y, end_z):
     # Q has positive values along the diagonal and zeros elsewhere.
     # Q enables us to target states where we want low error by making the 
     # corresponding value of Q large.
-    Q = np.array([[0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize X position error 
+    Q = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize X position error 
                   [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],   # Penalize dX error
-                  [0.0, 0.0, 0.001, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize Y position error 
-                  [0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize dY error 
+                  [0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize Y position error 
+                  [0.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize dY error 
                   [0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0], # Penalize Z position error
-                  [0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0], # Penalize dZ error
+                  [0.0, 0.0, 0.0, 0.0, 0.0, 100.0, 0.0, 0.0, 0.0], # Penalize dZ error
                   [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0],  # Penalize AZIMUTH heading error
                   [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0, 0.0], # Penalize ELEVATION heading error
                   [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1]]) # Penalize TILT heading error
-             
+    Q = np.diag(Q_costs)
+
     # Launch the robot, and have it move to the desired goal destination
     #controls = []
     xpositions = []
@@ -553,12 +554,11 @@ def go_to_waypoint(start, end_x, end_y, end_z):
         print(f'State Error Magnitude = {state_error_magnitude}')
         concerns_magnitude = np.linalg.norm(concerns)
         print(f'Position Error Magnitude = {concerns_magnitude}')
-        B = getB(actual_state_x[6], actual_state_x[7], actual_state_x[8], dt)
+        B = getB(actual_state_x[6], actual_state_x[7], actual_state_x[8])
          
         # LQR returns the optimal control input
-        optimal_control_input = lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt) 
-        print(f'Control Input = {optimal_control_input}')
-                                     
+        optimal_control_input = lqr(actual_state_x, desired_state_xf, Q, R, A, B) 
+        print(f'Control Input = {optimal_control_input}')       
          
         # We apply the optimal control to the robot
         # so we can get a new actual (estimated) state.
@@ -577,7 +577,7 @@ def go_to_waypoint(start, end_x, end_y, end_z):
         old_mag = state_error_magnitude
         print()
     #return actual_state_x, xpositions, ypositions, zpositions, linvels, ruddervels, lfvels, rfvels
-    return actual_state_x, xpositions, ypositions, zpositions
+    return actual_state_x, state_error_magnitude
 #
 #class Robot:
     #def __init__(self, b, vel, rudder, leftFin, rightFin):
@@ -641,53 +641,66 @@ def go_to_waypoint(start, end_x, end_y, end_z):
         #return xpos, ypos, zpos
 
 # Entry point for the program
+
 start = [0, 0, 0]
 end = [100, 100, -100]
 startpoint = np.array([start[0], 0, start[1], 0, start[2], 0, 0, 0, 0])
 waypoints, xs, ys, zs, obstacle_xs, obstacle_ys, obstacle_zs, test_start, test_goal = plan_path(start[0],start[1],start[2],end[0],end[1],end[2])
-realxs = []
-realys = []
-realzs = []
-accs = []
-ruds = []
-lfs = []
-rfs = []
-waypoints = waypoints[1:3] + waypoints[-1:]
-for way in waypoints:
-    #startpoint, xposes, yposes, zposes, lins, angle, angle2, angle3 = go_to_waypoint(startpoint, way[0], way[1], way[2])
-    startpoint, xposes, yposes, zposes = go_to_waypoint(startpoint, way[0], way[1], way[2])
-    realxs.extend(xposes)
-    realys.extend(yposes)
-    realzs.extend(zposes)
-    time.sleep(2)
-    #accs.extend(lins)
-    #ruds.extend(angle)
-    #lfs.extend(angle2)
-    #rfs.extend(angle3)
+waypoints = [waypoints[1], waypoints[-2], waypoints[-1]]
+
+trials = [0.1, 1.0, 10.0]
+costs = [0.1 for x in range(9)]
+best_costs = [0.1 for x in range(9)]
+min_error = 300.0
+for a in trials:
+    for b in trials:
+        for c in trials:
+            for d in trials:
+                for e in trials:
+                    for f in trials:
+                        costs = [a,b,c,d,e,f,0.1,0.1,0.1]
+                        start = [0, 0, 0]
+                        startpoint = np.array([start[0], 0, start[1], 0, start[2], 0, 0, 0, 0])
+                        for way in waypoints:
+                            startpoint, error = go_to_waypoint(startpoint, way[0], way[1], way[2], costs)
+                        if error < min_error:
+                            min_error = error
+                            best_costs = costs
+#for j in trials:
+    #for i in range(len(costs)):
+        #costs[i] = j
+        #start = [0, 0, 0]
+        #startpoint = np.array([start[0], 0, start[1], 0, start[2], 0, 0, 0, 0])
+        #for way in waypoints:
+            #startpoint, error = go_to_waypoint(startpoint, way[0], way[1], way[2], costs)
+        #if error < min_error:
+            #min_error = error
+            #best_costs = costs
 
 print(waypoints)
-
+print(costs)
+print(min_error)
 #rob = Robot(start, vels, ruds, lfs, rfs)
 #print(len(vels), len(ruds), len(lfs), len(rfs))
 #second_xs, second_ys, second_zs = rob.run()
 
-ax = plt.axes(projection='3d')
-ax.plot3D(obstacle_xs, obstacle_ys, obstacle_zs, 'ro', alpha=0.3, label='obstacles')
-ax.plot3D(xs,ys,zs,label='planned path')
-ax.plot3D([test_start[0]], [test_start[1]], [-test_start[2]], 'b*', label='plan start')
-ax.plot3D([test_goal[0]], [test_goal[1]], [-test_goal[2]], 'g*', label='plan end')
-ax.plot3D(realxs,realys,realzs,'g',label='2nd order path')
-ax.plot3D([realxs[0]], [realys[0]], [realzs[0]], 'r*', label = '2nd order start')
-ax.plot3D([realxs[-1]], [realys[-1]], [realzs[-1]], 'm*', label = '2nd order end')
+#ax = plt.axes(projection='3d')
+#ax.plot3D(obstacle_xs, obstacle_ys, obstacle_zs, 'ro', alpha=0.3, label='obstacles')
+#ax.plot3D(xs,ys,zs,label='planned path')
+#ax.plot3D([test_start[0]], [test_start[1]], [-test_start[2]], 'b*', label='plan start')
+#ax.plot3D([test_goal[0]], [test_goal[1]], [-test_goal[2]], 'g*', label='plan end')
+#ax.plot3D(realxs,realys,realzs,'g',label='2nd order path')
+#ax.plot3D([realxs[0]], [realys[0]], [realzs[0]], 'r*', label = '2nd order start')
+#ax.plot3D([realxs[-1]], [realys[-1]], [realzs[-1]], 'm*', label = '2nd order end')
 #ax.plot3D(second_xs, second_ys, second_zs, 'k', label = '2nd order path')
 #ax.plot3D([second_xs[0]], [second_ys[0]], [second_zs[0]], 'c*', label = '2nd order start')
 #ax.plot3D([second_xs[-1]], [second_ys[-1]], [second_zs[-1]], 'y*', label = '2nd order end')
-ax.set_xlabel('x (meters)')
-ax.set_ylabel('y (meters)')
-ax.set_zlabel('z (meters)')
-plt.title("Planned Path vs 2nd order Waypoint Control Path")
-ax.legend(loc='center left')
-plt.show()
+#ax.set_xlabel('x (meters)')
+#ax.set_ylabel('y (meters)')
+#ax.set_zlabel('z (meters)')
+#plt.title("Planned Path vs 2nd order Waypoint Control Path")
+#ax.legend(loc='center left')
+#plt.show()
 
 #velocities = np.asarray(vels)
 #accelerations = np.diff(velocities)
