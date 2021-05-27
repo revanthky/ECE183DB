@@ -15,7 +15,12 @@ np.set_printoptions(precision=3,suppress=True)
 # Optional Variables
 #max_linear_velocity = 3.0 # meters per second
 #max_angular_velocity = 1.5708 # radians per second
-mass = 1.0
+max_angle = 0.610 # radians per second
+mass = 682.04 #kg
+max_thrust = 587.16 #N
+avg_drag_force = 59.1613 #N
+drag_acceleration = avg_drag_force / mass
+max_acceleration = max_thrust / mass
 dt = 1.0
 
 def getB(azimuth, elevation, tilt):
@@ -37,7 +42,22 @@ def getB(azimuth, elevation, tilt):
         B[8][3] = -0.2
         return B
  
- 
+def clip_and_noise(control_input_t_minus_1):
+    #clipped acceleration is 1.09 m/s^2 based on maximum available thrust at average speed of 2 knots (1 m/s)
+    fin_noise = np.random.normal(0, 0.05*max_angle)
+    thrust_noise = np.random.uniform(0, 0.05*max_acceleration)
+    control_input_t_minus_1[0] += thrust_noise
+    control_input_t_minus_1[1] += fin_noise
+    control_input_t_minus_1[2] += fin_noise
+    control_input_t_minus_1[3] += fin_noise
+    clipped = [0, 0, 0, 0]
+    clipped[0] = np.clip(control_input_t_minus_1[0], -max_acceleration, max_acceleration)
+    clipped[1] = np.clip(control_input_t_minus_1[1], -max_angle, max_angle)
+    clipped[2] = np.clip(control_input_t_minus_1[2], -max_angle, max_angle)
+    clipped[3] = np.clip(control_input_t_minus_1[3], -max_angle, max_angle)
+    clipped[0] -= drag_acceleration
+    return np.asarray(clipped)
+
 def state_space_model(A, state_t_minus_1, B, control_input_t_minus_1):
     # These next 6 lines of code which place limits on the angular and linear 
     # velocities of the robot car can be removed if you desire.
