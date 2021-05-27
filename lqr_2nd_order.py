@@ -42,7 +42,7 @@ np.set_printoptions(precision=3,suppress=True)
 # Optional Variables
 #max_linear_velocity = 1.565 # meters per second
 max_angle = 0.610 # radians per second
-mass = 538.4141 #kg
+mass = 682.04 #kg
 max_thrust = 587.16 #N
 avg_drag_force = 59.1613 #N
 drag_acceleration = avg_drag_force / mass
@@ -349,8 +349,7 @@ def getB(alpha, beta, gamma):
     return B
  
 def clip_and_noise(control_input_t_minus_1):
-    #clipped acceleration is 1.09 m/s^2 based on maximum available thrust at average speed of 2 knots (1 m/s)
-    
+
     fin_noise = np.random.normal(0, 0.05*max_angle, 1)
     thrust_noise = np.random.normal(0, 0.05*max_acceleration, 1)
     control_input_t_minus_1[0] += thrust_noise
@@ -367,15 +366,15 @@ def clip_and_noise(control_input_t_minus_1):
 
 def update_state_with_noise(A, state_t_minus_1, B, control_input_t_minus_1):
     
-    velocity_noise = np.random.normal(0, 0.01, 1) #meters
+    position_noise = np.random.normal(0, 0.01, 1) #meters
     orientation_noise = np.random.normal(0, 0.005, 1) #radians
     state_estimate_t = (A @ state_t_minus_1) + (B @ control_input_t_minus_1) 
-    #state_estimate_t[1] += velocity_noise
-    #state_estimate_t[3] += velocity_noise
-    #state_estimate_t[5] += velocity_noise
-    #state_estimate_t[6] += orientation_noise
-    #state_estimate_t[7] += orientation_noise
-    #state_estimate_t[8] += orientation_noise
+    state_estimate_t[0] += position_noise
+    state_estimate_t[2] += position_noise
+    state_estimate_t[4] += position_noise
+    state_estimate_t[6] += orientation_noise
+    state_estimate_t[7] += orientation_noise
+    state_estimate_t[8] += orientation_noise
     return state_estimate_t
 
 def lqr(actual_state_x, desired_state_xf, Q, R, A, B):
@@ -556,12 +555,15 @@ def go_to_waypoint(start, end_x, end_y, end_z, Q_costs, eval=False):
          
         # LQR returns the optimal control input
         optimal_control_input = lqr(actual_state_x, desired_state_xf, Q, R, A, B) 
-        print(f'Control Input = {optimal_control_input}')       
-        controls.append(optimal_control_input.tolist())
+        clipped_control_input = clip_and_noise(optimal_control_input)
+        print(f'Control Input = {optimal_control_input}') 
+        print(f'Clipped Control = {clipped_control_input}')      
+        controls.append(clipped_control_input.tolist())
         
         # We apply the optimal control to the robot
         # so we can get a new actual (estimated) state.
-        actual_state_x = update_state_with_noise(A, actual_state_x, B, optimal_control_input)  
+        actual_state_x = update_state_with_noise(A, actual_state_x, B, clipped_control_input)  
+        
         if eval:
             xpositions.append(actual_state_x[0])
             ypositions.append(actual_state_x[2])
@@ -646,10 +648,10 @@ for n in range(Nu):
     time.sleep(1)
     o = obstacles[n]
     w = ways[n]
-    xs = [v[0] for v in w]
-    ys = [v[1] for v in w]
-    zs = [v[2] for v in w]
     start = [0, 0, 0]
+    xs = [start[0]]+[v[0] for v in w]
+    ys = [start[1]]+[v[1] for v in w]
+    zs = [start[2]]+[v[2] for v in w]
     end = [w[-1][0], w[-1][1], w[-1][2]]
     startpoint = np.array([start[0], 0, start[1], 0, start[2], 0, 0, 0, 0])
     #waypoints, xs, ys, zs, obstacle_xs, obstacle_ys, obstacle_zs, test_start, test_goal = plan_path(start[0],start[1],start[2],end[0],end[1],end[2])
@@ -688,12 +690,13 @@ for n in range(Nu):
                             start = [0, 0, 0]
                             startpoint = np.array([start[0], 0, start[1], 0, start[2], 0, 0, 0, 0])
                             error = 0.0
-                            totalweight = 0.0
+                            totalweight = 1.0
                             for way in waypoints:
                                 startpoint, mid_error = go_to_waypoint(startpoint, way[0], way[1], way[2], costs)
-                                error += 0.15*mid_error
-                                totalweight += 0.15
-                            error += (1-totalweight)*mid_error
+                                if mid_error > 3.8:
+                                    error += 0.15*mid_error
+                                    totalweight -= 0.15
+                            error += totalweight*mid_error
                             if error < min_error:
                                 min_error = error
                                 best_costs = costs
@@ -705,14 +708,15 @@ for n in range(Nu):
         realys.extend(y_s)
         realzs.extend(z_s)
         realcontrol.extend(control)
-
-    print(best_costs)
-    print(min_error)
     
+    f = open(f'trial{n+1}.txt', "w")
+    f.write(f'Q:{best_costs}, Error:{min_error}')
+    f.close()
+
     ax = plt.axes(projection='3d')
     ax.view_init(azim=45, elev=30)
     ax.plot3D(obstacle_xs, obstacle_ys, obstacle_zs, 'ro', alpha=0.3, label='obstacles')
-    ax.scatter(xs,ys,zs, '.', label='waypoints')
+    ax.plot3D(xs,ys,zs, color='black', label='planned path (waypoints)')
     ax.plot3D([test_start[0]], [test_start[1]], [test_start[2]], 'b*', label='plan start')
     ax.plot3D([test_goal[0]], [test_goal[1]], [test_goal[2]], 'g*', label='plan end')
     ax.plot3D(realxs,realys,realzs,'g',label='2nd order path')
@@ -721,20 +725,50 @@ for n in range(Nu):
     ax.set_xlabel('x (meters)')
     ax.set_ylabel('y (meters)')
     ax.set_zlabel('z (meters)')
-    plt.title("Planned Path vs 2nd order Waypoint Control Path")
-    ax.legend(loc='center left')
-    st = f'trial{n}_path'
+    plt.title(f'2nd order Waypoint Control')
+    #ax.legend(loc='center right')
+    st = f'trial{n+1}_path_updated'
     plt.savefig(st)
     plt.clf()
 
     tim = [i for i in range(len(realcontrol))]
     accs = [realcontrol[i][0] for i in range(len(realcontrol))]
-    st2 = f'trial{n}_control'
+    st2 = f'trial{n+1}_acc_control_updated'
     plt.xlabel('Time (seconds)')
-    plt.ylabel('Acceleration control (m/s)')
-    plt.title('LQR Control Input')
+    plt.ylabel('Acceleration control (m/s^2)')
+    plt.title('LQR Acceleration Control Input')
     plt.plot(tim, accs)
     plt.savefig(st2)
+    plt.clf()
+
+    #tim = [i for i in range(len(realcontrol))]
+    ruds = [realcontrol[i][1] for i in range(len(realcontrol))]
+    st3 = f'trial{n+1}_rud_control_updated'
+    plt.xlabel('Time (seconds)')
+    plt.ylabel('Rudder control (radians)')
+    plt.title('LQR Rudder Control Input')
+    plt.plot(tim, ruds)
+    plt.savefig(st3)
+    plt.clf()
+
+    #tim = [i for i in range(len(realcontrol))]
+    lfs = [realcontrol[i][2] for i in range(len(realcontrol))]
+    st4 = f'trial{n+1}_lf_control_updated'
+    plt.xlabel('Time (seconds)')
+    plt.ylabel('Left Fin control (radians)')
+    plt.title('LQR Left Fin Control Input')
+    plt.plot(tim, lfs)
+    plt.savefig(st4)
+    plt.clf()
+
+    tim = [i for i in range(len(realcontrol))]
+    rfs = [realcontrol[i][3] for i in range(len(realcontrol))]
+    st5 = f'trial{n+1}_rf_control_updated'
+    plt.xlabel('Time (seconds)')
+    plt.ylabel('Right Fin control (radians)')
+    plt.title('LQR Right Fin Control Input')
+    plt.plot(tim, rfs)
+    plt.savefig(st5)
     plt.clf()
 #velocities = np.asarray(vels)
 #accelerations = np.diff(velocities)
