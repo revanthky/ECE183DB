@@ -1,5 +1,5 @@
 import numpy as np
-from scipy import linalg as la
+#from scipy import linalg as la
 from copy import deepcopy
 import math
 import random
@@ -31,13 +31,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Author: Addison Sears-Collins
 # https://automaticaddison.com
-# Description: Linear Quadratic Regulator example 
+# Description: Linear Quadratic Regulator example
 #   (two-wheeled differential drive robot car)
- 
+
 ######################## DEFINE CONSTANTS #####################################
 # Supress scientific notation when printing NumPy arrays
 np.set_printoptions(precision=3,suppress=True)
- 
+
 # Optional Variables
 #max_linear_velocity = 1.565 # meters per second
 max_angular_velocity = 0.610 # radians per second
@@ -76,7 +76,7 @@ class PathPlanner:
         col = len(self.grid[0][0])
 
         self.heuristic = [[[0 for x in range(col)] for y in range(row)] for z in range(layer)]
-        
+
         #print(len(self.heuristic) == len(self.grid))
         #print(len(self.heuristic[0]) == len(self.grid[0]))
         #print(len(self.heuristic[0][0]) == len(self.grid[0][0]))
@@ -144,9 +144,9 @@ class PathPlanner:
                  [1, 1, -1],  # lower left and sink
                  [1, -1, 1],  # upper right and sink
                  [1, 1, 1]]  # lower right and sink
-        delta_name = ['^0 ', '<0 ', 'v0 ', '>0 ', 'UL0', 'LL0', 'UR0', 'LR0', 
-                    '^F ', '<F ', 'vF ', '>F ', 'ULF', 'LLF', 'URF', 'LRF', 
-                    '^S ', '<S ', 'vS ', '>S ', 'ULS', 'LLS', 'URS', 'LRS'] 
+        delta_name = ['^0 ', '<0 ', 'v0 ', '>0 ', 'UL0', 'LL0', 'UR0', 'LR0',
+                    '^F ', '<F ', 'vF ', '>F ', 'ULF', 'LLF', 'URF', 'LRF',
+                    '^S ', '<S ', 'vS ', '>S ', 'ULS', 'LLS', 'URS', 'LRS']
                     #F is float (rise), S is sink, 0 is stationary on z axis
 
         # Heavily used from some of the A* Examples by Sebastian Thrun:
@@ -287,7 +287,7 @@ def plan_path(sx, sy, sz, ex, ey, ez):
                     #obstacle_xs.append(x)
                     #obstacle_ys.append(y)
                     #obstacle_zs.append(-z)
-    
+
     # Create an instance of the PathPlanner class:
     test_planner = PathPlanner(test_grid)
 
@@ -306,7 +306,7 @@ def plan_path(sx, sy, sz, ex, ey, ez):
     for i in range(1, len(path)):
         if delts[i] != delts[i-1]:
             waypoints.append((path[i-1][2], path[i-1][1], -path[i-1][0]))
-    
+
     waypoints.append((test_goal[0], test_goal[1], -test_goal[2]))
 
 
@@ -316,13 +316,13 @@ def getB(alpha, beta, gamma, deltat):
     """
     Calculates and returns the B matrix
     3x2 matix ---> number of states x number of control inputs
- 
+
     Expresses how the state of the system [x,y,yaw] changes
     from t-1 to t due to the control commands (i.e. control inputs).
-     
-    :param yaw: The yaw angle (rotation angle around the z axis) in radians 
+
+    :param yaw: The yaw angle (rotation angle around the z axis) in radians
     :param deltat: The change in time from timestep t-1 to t in seconds
-     
+
     :return: B matrix ---> 3x2 NumPy array
     """
     # [linear velocity, rudder angle, left fin angle, right fin angle]
@@ -363,7 +363,7 @@ def getB2(alpha, beta, gamma):
     B[11][2] = 0.2
     B[11][3] = -0.2
     return B
- 
+
 def clip_and_noise(control_input_t_minus_1, last_vel):
     #clipped acceleration is 1.09 m/s^2 based on maximum available thrust at average speed of 2 knots (1 m/s)
     max_linear_velocity = last_vel + max_acceleration
@@ -382,10 +382,10 @@ def clip_and_noise(control_input_t_minus_1, last_vel):
     return np.asarray(clipped)
 
 def update_state_with_noise(A, state_t_minus_1, B, control_input_t_minus_1):
-    
+
     position_noise = random.uniform(0, 0.01) #meters
     orientation_noise = random.uniform(0, 0.005) #radians
-    state_estimate_t = (A @ state_t_minus_1) + (B @ control_input_t_minus_1) 
+    state_estimate_t = (A @ state_t_minus_1) + (B @ control_input_t_minus_1)
     state_estimate_t[0] += position_noise
     state_estimate_t[1] += position_noise
     state_estimate_t[2] += position_noise
@@ -397,66 +397,66 @@ def update_state_with_noise(A, state_t_minus_1, B, control_input_t_minus_1):
 def lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt):
     """
     Discrete-time linear quadratic regulator for a nonlinear system.
- 
-    Compute the optimal control inputs given a nonlinear system, cost matrices, 
+
+    Compute the optimal control inputs given a nonlinear system, cost matrices,
     current state, and a final state.
-     
+
     Compute the control variables that minimize the cumulative cost.
- 
+
     Solve for P using the dynamic programming method.
- 
-    :param actual_state_x: The current state of the system 
+
+    :param actual_state_x: The current state of the system
         3x1 NumPy Array given the state is [x,y,yaw angle] --->
         [meters, meters, radians]
     :param desired_state_xf: The desired state of the system
         3x1 NumPy Array given the state is [x,y,yaw angle] --->
-        [meters, meters, radians]   
+        [meters, meters, radians]
     :param Q: The state cost matrix
         3x3 NumPy Array
     :param R: The input cost matrix
         2x2 NumPy Array
     :param dt: The size of the timestep in seconds -> float
- 
-    :return: u_star: Optimal action u for the current state 
+
+    :return: u_star: Optimal action u for the current state
         2x1 NumPy Array given the control input vector is
         [linear velocity of the car, angular velocity of the car]
         [meters per second, radians per second]
     """
     # We want the system to stabilize at desired_state_xf.
     x_error = actual_state_x - desired_state_xf
- 
-    # Solutions to discrete LQR problems are obtained using the dynamic 
+
+    # Solutions to discrete LQR problems are obtained using the dynamic
     # programming method.
-    # The optimal solution is obtained recursively, starting at the last 
+    # The optimal solution is obtained recursively, starting at the last
     # timestep and working backwards.
     # You can play with this number
     N = 50
- 
+
     # Create a list of N + 1 elements
     P = [None] * (N + 1)
-     
+
     Qf = Q
- 
+
     # LQR via Dynamic Programming
     P[N] = Qf
- 
+
     # For i = N, ..., 1
     for i in range(N, 0, -1):
- 
-        # Discrete-time Algebraic Riccati equation to calculate the optimal 
+
+        # Discrete-time Algebraic Riccati equation to calculate the optimal
         # state cost matrix
         P[i-1] = Q + A.T @ P[i] @ A - (A.T @ P[i] @ B) @ np.linalg.pinv(
             R + B.T @ P[i] @ B) @ (B.T @ P[i] @ A)
         #print("P[i]: ")
         #print(P[i-1])
- 
+
     # Create a list of N elements
     K = [None] * N
     u = [None] * N
- 
+
     # For i = 0, ..., N - 1
     for i in range(N):
- 
+
         # Calculate the optimal feedback gain K
         K[i] = -np.linalg.pinv(R + B.T @ P[i+1] @ B) @ B.T @ P[i+1] @ A
         #print("K[i]: ")
@@ -466,25 +466,25 @@ def lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt):
         #print(u[i])
     #print("x_error: ")
     #print(x_error)
- 
+
     # Optimal control input is u_star
     u_star = u[N-1]
- 
+
     #P = la.solve_discrete_are(A, B, Q, R)
     #K = la.solve(R + B.T.dot(P).dot(B), B.T.dot(P).dot(A))
     #u_star = K.dot(x_error)
     #K, S, E = control.lqr(A, B, Q, R)
     #u_star = K.dot(x_error)
     return u_star
- 
+
 def go_to_waypoint(start, end_x, end_y, end_z):
-     
+
     # Let the time interval be 1.0 seconds
     dt = 1.0
-     
+
     # Actual state
     actual_state_x = start
-    #actual_2nd_state = start_2 
+    #actual_2nd_state = start_2
 
     # Desired state [x, y, z, azimuth angle, elevation angle, tilt angle]
     # [metes, meters, meters, radians, radians, radians]
@@ -496,12 +496,12 @@ def go_to_waypoint(start, end_x, end_y, end_z):
     z_diff = desz - actual_state_x[2]
     desaz = np.arctan(y_diff/x_diff)
     desel = np.arctan(z_diff/(np.sqrt(x_diff**2+y_diff**2)))
-    desired_state_xf = np.array([desx, desy, desz, desaz, desel, 0])  
+    desired_state_xf = np.array([desx, desy, desz, desaz, desel, 0])
     #desired_2nd_state = np.array([desx, 0.0, desy, 0.0, desz, 0.0, desaz, 0.0, desel, 0.0, 0.0, 0.0])
-     
+
     # A matrix
     # 3x3 matrix -> number of states x number of states matrix
-    # Expresses how the state of the system [x,y,yaw] changes 
+    # Expresses how the state of the system [x,y,yaw] changes
     # from t-1 to t when no control command is executed.
     # Typically a robot on wheels only drives when the wheels are told to turn.
     # For this case, A is the identity matrix.
@@ -523,37 +523,37 @@ def go_to_waypoint(start, end_x, end_y, end_z):
     # R matrix
     # The control input cost matrix
     # Experiment with different R matrices
-    # This matrix penalizes actuator effort (i.e. rotation of the 
+    # This matrix penalizes actuator effort (i.e. rotation of the
     # motors on the wheels that drive the linear velocity and angular velocity).
     # The R matrix has the same number of rows as the number of control
-    # inputs and same number of columns as the number of 
+    # inputs and same number of columns as the number of
     # control inputs.
     # This matrix has positive values along the diagonal and 0s elsewhere.
-    # We can target control inputs where we want low actuator effort 
-    # by making the corresponding value of R large. 
+    # We can target control inputs where we want low actuator effort
+    # by making the corresponding value of R large.
     R = np.array([[200.00, 0.00, 0.00, 0.00],  # Penalty for linear velocity effort
                   [0.00, 0.01, 0.00, 0.00],  # Penalty for azimuth angular velocity effort
                   [0.00, 0.00, 0.01, 0.00],  # Penalty for elevation angular velocity effort
                   [0.00, 0.00, 0.00, 0.01]]) # Penalty for tilt angular velocity effort
- 
+
     # Q matrix
     # The state cost matrix.
     # Experiment with different Q matrices.
-    # Q helps us weigh the relative importance of each state in the 
-    # state vector (X, Y, YAW ANGLE). 
-    # Q is a square matrix that has the same number of rows as 
+    # Q helps us weigh the relative importance of each state in the
+    # state vector (X, Y, YAW ANGLE).
+    # Q is a square matrix that has the same number of rows as
     # there are states.
     # Q penalizes bad performance.
     # Q has positive values along the diagonal and zeros elsewhere.
-    # Q enables us to target states where we want low error by making the 
+    # Q enables us to target states where we want low error by making the
     # corresponding value of Q large.
-    Q = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize X position error 
-                  [0.0, 10.0, 0.0, 0.0, 0.0, 0.0],  # Penalize Y position error 
-                  [0.0, 0.0, 10.0, 0.0, 0.0, 0.0],  # Penalize Z position error 
+    Q = np.array([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0],  # Penalize X position error
+                  [0.0, 10.0, 0.0, 0.0, 0.0, 0.0],  # Penalize Y position error
+                  [0.0, 0.0, 10.0, 0.0, 0.0, 0.0],  # Penalize Z position error
                   [0.0, 0.0, 0.0, 0.1, 0.0, 0.0],  # Penalize AZIMUTH heading error
                   [0.0, 0.0, 0.0, 0.0, 0.1, 0.0],  # Penalize ELEVATION heading error
                   [0.0, 0.0, 0.0, 0.0, 0.0, 0.1]]) # Penalize TILT heading error
-                   
+
     # Launch the robot, and have it move to the desired goal destination
     #controls = []
     xpositions = []
@@ -572,19 +572,19 @@ def go_to_waypoint(start, end_x, end_y, end_z):
         print(f'iteration = {i} seconds')
         print(f'Current State = {actual_state_x}')
         print(f'Desired State = {desired_state_xf}')
-         
+
         state_error = actual_state_x - desired_state_xf
-        state_error_magnitude = np.linalg.norm(state_error)     
+        state_error_magnitude = np.linalg.norm(state_error)
         print(f'State Error Magnitude = {state_error_magnitude}')
         #state_error_2 = actual_2nd_state - desired_2nd_state
-        #state_error_magnitude_2 = np.linalg.norm(state_error_2)     
+        #state_error_magnitude_2 = np.linalg.norm(state_error_2)
         #print(f'Second Order State Error Magnitude = {state_error_magnitude_2}')
-         
+
         B = getB(actual_state_x[3], actual_state_x[4], actual_state_x[5], dt)
         #B2 = getB2(actual_2nd_state[6], actual_2nd_state[8], actual_2nd_state[10])
 
         # LQR returns the optimal control input
-        optimal_control_input = lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt) 
+        optimal_control_input = lqr(actual_state_x, desired_state_xf, Q, R, A, B, dt)
         clipped_control_input = clip_and_noise(optimal_control_input, linvels[-1])
         print(f'Control Input = {optimal_control_input}')
         print(f'Clipped Control = {clipped_control_input}')
@@ -597,7 +597,7 @@ def go_to_waypoint(start, end_x, end_y, end_z):
         #clipped_2nd_input = clipped_control_input
         #clipped_2nd_input[0] -= linvels[-1]
         #controls.append(optimal_control_input)
-         
+
         # We apply the optimal control to the robot
         # so we can get a new actual (estimated) state.
         actual_state_x = update_state_with_noise(A, actual_state_x, B, clipped_control_input)
@@ -673,7 +673,7 @@ class Robot:
         return B
 
     def update(self, input_):
-        self.state = (self.A @ self.state) + (self.B @ input_) 
+        self.state = (self.A @ self.state) + (self.B @ input_)
         self.B = self.getB(self.state[6], self.state[8], self.state[10])
 
     def run(self):
@@ -772,9 +772,9 @@ plt.show()
     ##print(f'iteration = {i} seconds')
     ##print(f'Current State = {cur}')
     ##print(f'Desired State = {goal}')
-#         
+#
     ##state_error = cur - goal
-    ##state_error_magnitude = np.linalg.norm(state_error)     
+    ##state_error_magnitude = np.linalg.norm(state_error)
     ##print(f'State Error Magnitude = {state_error_magnitude}')
 #
     ##rob.update(rob.lqr())
