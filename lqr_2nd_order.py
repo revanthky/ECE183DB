@@ -726,7 +726,7 @@ for n in range(Nu):
     ax.set_ylabel('y (meters)')
     ax.set_zlabel('z (meters)')
     plt.title(f'2nd order Waypoint Control')
-    #ax.legend(loc='center right')
+    ax.legend(loc='center right')
     st = f'trial{n+1}_path_updated'
     plt.savefig(st)
     plt.clf()

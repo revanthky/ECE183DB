@@ -75,10 +75,10 @@ def clip_and_noise(control_input_t_minus_1, last_rud, last_lf, last_rf):
     #clipped acceleration is 1.09 m/s^2 based on maximum available thrust at average speed of 2 knots (1 m/s)
 
 
-    fin_noise = np.random.normal(0, 0.05*max_angle, 1)
-    thrust_noise = np.random.normal(0, 0.05*max_acceleration, 1)
-    fin_noises.append(fin_noise)
-    thrust_noises.append(thrust_noise)
+    fin_noise = np.random.normal(0, 0.02*max_angle, 1)
+    thrust_noise = np.random.normal(0, 0.02*max_acceleration, 1)
+    fin_noises.append(fin_noise[0])
+    thrust_noises.append(thrust_noise[0])
 
     control_input_t_minus_1[0] += thrust_noise
     control_input_t_minus_1[1] += fin_noise
@@ -107,9 +107,9 @@ def state_space_model(A, state_t_minus_1, B, control_input_t_minus_1):
     #                                                                        -max_angular_velocity,
     #                                                                        max_angular_velocity)
     position_noise = np.random.normal(0, 0.08, 1) #meters
-    orientation_noise = np.random.normal(0, 0.01, 1) #radians
-    o_noises.append(orientation_noise)
-    p_noises.append(position_noise)
+    orientation_noise = np.random.normal(0, 0.06, 1) #radians
+    o_noises.append(orientation_noise[0])
+    p_noises.append(position_noise[0])
 
     state_estimate_t = (A @ state_t_minus_1) + (B @ control_input_t_minus_1)
     state_estimate_t[0] += position_noise
@@ -333,7 +333,7 @@ def main():
     # ax.plot3D(obstacle_xs, obstacle_ys, obstacle_zs, 'ro', alpha=0.3, label='obstacles')
     # ax.plot3D(xs,ys,zs, color='black', label='planned path (waypoints)')
     # ax.plot3D([test_start[0]], [test_start[1]], [test_start[2]], 'b*', label='plan start')
-    # ax.plot3D([test_goal[0]], [test_goal[1]], [test_goal[2]], 'g*', label='plan end')
+    ax.plot3D([desx], [desy], [desz], 'g*', label='plan end')
     ax.plot3D(xpos,ypos,zpos,'g',label='2nd order path')
     ax.plot3D([xpos[0]], [ypos[0]], [zpos[0]], 'r*', label = '2nd order start')
     ax.plot3D([xpos[-1]], [ypos[-1]], [zpos[-1]], 'm*', label = '2nd order end')
@@ -341,6 +341,7 @@ def main():
     ax.set_ylabel('y (meters)')
     ax.set_zlabel('z (meters)')
     plt.title(f'2nd order Control')
+    plt.legend()
     plt.show()
 
     tim = [i for i in range(len(controls))]
@@ -383,35 +384,35 @@ def main():
     plt.show()
     plt.clf()
 
-    tim = [i for i in range(len(o_noises))]
-    plt.xlabel('Time (seconds)')
-    plt.ylabel('Orientation Noises (radians)')
+    plt.xlabel('Orientation Noises (radians)')
+    plt.ylabel('Occurences')
     plt.title('Orientation Noises')
-    plt.plot(tim, o_noises)
+    #plt.plot(tim, o_noises)
+    plt.hist(o_noises, bins=15)
     plt.show()
     plt.clf()
 
-    tim = [i for i in range(len(p_noises))]
-    plt.xlabel('Time (seconds)')
-    plt.ylabel('Position Noises (radians)')
+    plt.xlabel('Position Noises (meters)')
+    plt.ylabel('Occurences')
     plt.title('Position Noises')
-    plt.plot(tim, p_noises)
+    #plt.plot(tim, p_noises)
+    plt.hist(p_noises, bins=15)
     plt.show()
     plt.clf()
 
-    tim = [i for i in range(len(thrust_noises))]
-    plt.xlabel('Time (seconds)')
-    plt.ylabel('Thrust Noises (radians)')
+    plt.xlabel('Thrust Noises (radians)')
+    plt.ylabel('Occurences')
     plt.title('Thrust Noises')
-    plt.plot(tim, thrust_noises)
+    #plt.plot(tim, thrust_noises)
+    plt.hist(thrust_noises, bins=15)
     plt.show()
     plt.clf()
 
-    tim = [i for i in range(len(fin_noises))]
-    plt.xlabel('Time (seconds)')
-    plt.ylabel('Fin/Rudder Noises (radians)')
+    plt.xlabel('Fin/Rudder Noises (radians)')
+    plt.ylabel('Occurences')
     plt.title('Fin and Rudder Noises')
-    plt.plot(tim, fin_noises)
+    #plt.plot(tim, fin_noises)
+    plt.hist(fin_noises, bins=15)
     plt.show()
     plt.clf()
 
