@@ -106,8 +106,8 @@ def state_space_model(A, state_t_minus_1, B, control_input_t_minus_1):
     #control_input_t_minus_1[1] = np.clip(control_input_t_minus_1[1],
     #                                                                        -max_angular_velocity,
     #                                                                        max_angular_velocity)
-    position_noise = np.random.normal(0, 0.08, 1) #meters
-    orientation_noise = np.random.normal(0, 0.06, 1) #radians
+    position_noise = np.random.normal(0, 0.1, 1) #meters
+    orientation_noise = np.random.normal(0, 0.1, 1) #radians
     o_noises.append(orientation_noise[0])
     p_noises.append(position_noise[0])
 
@@ -286,7 +286,7 @@ def main():
 
     # Launch the robot, and have it move to the desired goal destination
     old_mag = 300.0
-    for i in range(360):
+    for i in range(1200):
         print(f'iteration = {i} seconds')
         print(f'Current State = {actual_state_x}')
         print(f'Desired State = {desired_state_xf}')
@@ -322,7 +322,7 @@ def main():
         if state_error_magnitude < 1.0 or concerns_magnitude < 3.8:
             print("\nGoal Has Been Reached Successfully!")
             break
-        if state_error_magnitude > old_mag+0.2:
+        if state_error_magnitude > old_mag + 0.2:
             break
         old_mag = state_error_magnitude
         print()
@@ -345,7 +345,7 @@ def main():
     plt.show()
 
     tim = [i for i in range(len(controls))]
-    accs = [controls[i][0] for i in range(len(controls))]
+    accs = [controls[i][0]+drag_acceleration for i in range(len(controls))]
     #st2 = f'trial{n+1}_acc_control_updated'
     plt.xlabel('Time (seconds)')
     plt.ylabel('Acceleration control (m/s^2)')
@@ -388,7 +388,7 @@ def main():
     plt.ylabel('Occurences')
     plt.title('Orientation Noises')
     #plt.plot(tim, o_noises)
-    plt.hist(o_noises, bins=15)
+    plt.hist(o_noises, bins=20)
     plt.show()
     plt.clf()
 
@@ -396,15 +396,15 @@ def main():
     plt.ylabel('Occurences')
     plt.title('Position Noises')
     #plt.plot(tim, p_noises)
-    plt.hist(p_noises, bins=15)
+    plt.hist(p_noises, bins=20)
     plt.show()
     plt.clf()
 
-    plt.xlabel('Thrust Noises (radians)')
+    plt.xlabel('Acceleration Noises (meters/second^2)')
     plt.ylabel('Occurences')
-    plt.title('Thrust Noises')
+    plt.title('Acceleration Noises')
     #plt.plot(tim, thrust_noises)
-    plt.hist(thrust_noises, bins=15)
+    plt.hist(thrust_noises, bins=20)
     plt.show()
     plt.clf()
 
@@ -412,7 +412,7 @@ def main():
     plt.ylabel('Occurences')
     plt.title('Fin and Rudder Noises')
     #plt.plot(tim, fin_noises)
-    plt.hist(fin_noises, bins=15)
+    plt.hist(fin_noises, bins=20)
     plt.show()
     plt.clf()
 
